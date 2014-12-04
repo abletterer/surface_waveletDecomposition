@@ -51,6 +51,8 @@ private slots:
 
     void synthesizeFromDialog();
     void analyzeFromDialog();
+    void saveImagesFromDialog();
+    void completeAnalysisFromDialog();
 
 public slots:
 

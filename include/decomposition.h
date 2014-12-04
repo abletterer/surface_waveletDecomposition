@@ -16,13 +16,35 @@ enum Axis
     VERTICAL
 };
 
+class NQRgb
+{
+public:
+    NQRgb(int red=0, int green=0, int blue=0)
+        : r(red), g(green), b(blue)
+    {}
+
+    ~NQRgb()
+    {}
+
+    int getRed() { return r; }
+    void setRed(int red) { r = red; }
+
+    int getGreen() { return g; }
+    void setGreen(int green) { g = green; }
+
+    int getBlue() { return b; }
+    void setBlue(int blue) { b = blue; }
+private:
+    int r, g, b;
+};
+
 class Decomposition
 {
 public:
-    Decomposition(int x, int y, short int level, Axis transformation_type, Decomposition* parent = NULL)
+    Decomposition(const int x, const int y, const short int level, const Axis transformation_type, Decomposition* parent = NULL)
         : m_image(),
           m_correction_x(x), m_correction_y(y),
-          m_correction(m_correction_x*m_correction_y),
+          m_correction(x*y),
           m_child(NULL),
           m_parent(parent),
           m_level(level),
@@ -44,14 +66,14 @@ public:
     int getCorrectionX() { return m_correction_x; }
     int getCorrectionY() { return m_correction_y; }
 
-    QRgb& getCorrection(int x, int y)
+    NQRgb& getCorrection(const int x, const int y)
     {
         if(x < m_correction_x && y < m_correction_y)
         {
             return m_correction[x+y*m_correction_x];
         }
     }
-    void setCorrection(const QRgb& correction, int x, int y)
+    void setCorrection(const int x, const int y, const NQRgb& correction)
     {
         if(x < m_correction_x && y < m_correction_y)
         {
@@ -66,11 +88,11 @@ public:
         {
             if(getTransformationType()==VERTICAL)
             {
-                m_child = new Decomposition(m_correction_x/2+m_correction_x%2, m_correction_y/2+m_correction_y%2, m_level+1, HORIZONTAL, this);
+                m_child = new Decomposition(m_correction_x, m_correction_y/2, m_level+1, HORIZONTAL, this);
             }
             else
             {
-                m_child = new Decomposition(m_correction_x/2+m_correction_x%2, m_correction_y/2+m_correction_y%2, m_level+1, VERTICAL, this);
+                m_child = new Decomposition(m_correction_x/2, m_correction_y, m_level+1, VERTICAL, this);
             }
             return m_child;
         }
@@ -83,12 +105,12 @@ public:
     short int getLevel() { return m_level; }
 
     Axis getTransformationType() { return m_transformation_type; }
-    void setTransformationType(Axis transformation_type) { m_transformation_type = transformation_type; }
+    void setTransformationType(const Axis transformation_type) { m_transformation_type = transformation_type; }
 
 private:
     QImage m_image;
     int m_correction_x, m_correction_y;
-    std::vector<QRgb> m_correction;
+    std::vector<NQRgb> m_correction;
     Decomposition* m_child;
     Decomposition* m_parent;
     short int m_level;
