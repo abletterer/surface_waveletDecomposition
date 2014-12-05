@@ -27,35 +27,17 @@ Dialog_Surface_WaveletDecomposition::Dialog_Surface_WaveletDecomposition(SCHNApp
 
 void Dialog_Surface_WaveletDecomposition::selectedMapChanged()
 {
-    if(m_selectedMap)
-        disconnect(m_selectedMap, SIGNAL(attributeAdded(unsigned int, const QString&)), this, SLOT(addAttributeToList(unsigned int, const QString&)));
-
     QList<QListWidgetItem*> currentItems = list_maps->selectedItems();
     if(!currentItems.empty())
     {
-        combo_positionAttribute->clear();
-
         const QString& mapname = currentItems[0]->text();
         MapHandlerGen* mh = m_schnapps->getMap(mapname);
-
-        QString vec3TypeName = QString::fromStdString(nameOfType(PFP2::VEC3()));
-
-        unsigned int j = 0;
-        const AttributeSet& attribs = mh->getAttributeSet(VERTEX);
-        for(AttributeSet::const_iterator i = attribs.constBegin(); i != attribs.constEnd(); ++i)
-        {
-            if(i.value() == vec3TypeName)
-            {
-                combo_positionAttribute->addItem(i.key());
-                ++j;
-            }
-        }
-
         m_selectedMap = mh;
-        connect(m_selectedMap, SIGNAL(attributeAdded(unsigned int, const QString&)), this, SLOT(addAttributeToList(unsigned int, const QString&)));
     }
     else
+    {
         m_selectedMap = NULL;
+    }
 }
 
 void Dialog_Surface_WaveletDecomposition::addMapToList(MapHandlerGen* map)
@@ -73,18 +55,6 @@ void Dialog_Surface_WaveletDecomposition::removeMapFromList(MapHandlerGen* map)
     {
         disconnect(m_selectedMap, SIGNAL(attributeAdded(unsigned int, const QString&)), this, SLOT(addAttributeToList(unsigned int, const QString&)));
         m_selectedMap = NULL;
-    }
-}
-
-void Dialog_Surface_WaveletDecomposition::addAttributeToList(unsigned int orbit, const QString& nameAttr)
-{
-    QString vec3TypeName = QString::fromStdString(nameOfType(PFP2::VEC3()));
-
-    const QString& typeAttr = m_selectedMap->getAttributeTypeName(orbit, nameAttr);
-
-    if(typeAttr == vec3TypeName)
-    {
-        combo_positionAttribute->addItem(nameAttr);
     }
 }
 

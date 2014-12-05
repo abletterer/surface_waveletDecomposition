@@ -49,10 +49,8 @@ private slots:
     void openWaveletDecompositionDialog();
     void closeWaveletDecompositionDialog();
 
-    void synthesizeFromDialog();
-    void analyzeFromDialog();
+    void decomposeFromDialog();
     void saveImagesFromDialog();
-    void completeAnalysisFromDialog();
 
 public slots:
 

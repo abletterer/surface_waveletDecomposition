@@ -29,10 +29,8 @@ bool Surface_WaveletDecomposition_Plugin::enable()
     connect(m_waveletDecompositionAction, SIGNAL(triggered()), this, SLOT(openWaveletDecompositionDialog()));
 
     connect(m_waveletDecompositionDialog->button_cancel, SIGNAL(clicked()), this, SLOT(closeWaveletDecompositionDialog()));
-    connect(m_waveletDecompositionDialog->button_synthesize, SIGNAL(clicked()), this, SLOT(synthesizeFromDialog()));
-    connect(m_waveletDecompositionDialog->button_analyze, SIGNAL(clicked()), this, SLOT(analyzeFromDialog()));
+    connect(m_waveletDecompositionDialog->button_decompose, SIGNAL(clicked()), this, SLOT(decomposeFromDialog()));
     connect(m_waveletDecompositionDialog->button_saveImages, SIGNAL(clicked()), this, SLOT(saveImagesFromDialog()));
-    connect(m_waveletDecompositionDialog->button_completeAnalysis, SIGNAL(clicked()), this, SLOT(completeAnalysisFromDialog()));
 
     return true;
 }
@@ -46,10 +44,8 @@ void Surface_WaveletDecomposition_Plugin::disable()
     disconnect(m_waveletDecompositionAction, SIGNAL(triggered()), this, SLOT(openWaveletDecompositionDialog()));
 
     disconnect(m_waveletDecompositionDialog->button_cancel, SIGNAL(clicked()), this, SLOT(closeWaveletDecompositionDialog()));
-    disconnect(m_waveletDecompositionDialog->button_synthesize, SIGNAL(clicked()), this, SLOT(synthesizeFromDialog()));
-    disconnect(m_waveletDecompositionDialog->button_analyze, SIGNAL(clicked()), this, SLOT(analyzeFromDialog()));
+    disconnect(m_waveletDecompositionDialog->button_decompose, SIGNAL(clicked()), this, SLOT(decomposeFromDialog()));
     disconnect(m_waveletDecompositionDialog->button_saveImages, SIGNAL(clicked()), this, SLOT(saveImagesFromDialog()));
-    disconnect(m_waveletDecompositionDialog->button_completeAnalysis, SIGNAL(clicked()), this, SLOT(completeAnalysisFromDialog()));
 }
 
 void Surface_WaveletDecomposition_Plugin::drawMap(View* view, MapHandlerGen *map)
@@ -78,40 +74,18 @@ void Surface_WaveletDecomposition_Plugin::closeWaveletDecompositionDialog()
     m_waveletDecompositionDialog->close();
 }
 
-void Surface_WaveletDecomposition_Plugin::synthesizeFromDialog()
+void Surface_WaveletDecomposition_Plugin::decomposeFromDialog()
 {
     QList<QListWidgetItem*> currentItems = m_waveletDecompositionDialog->list_maps->selectedItems();
     if(!currentItems.empty() && m_decomposition)
     {
         const QString& mapName = currentItems[0]->text();
-        const QString& positionName = m_waveletDecompositionDialog->combo_positionAttribute->currentText();
 
         MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(m_schnapps->getMap(mapName));
 
         if(mh_map && m_decomposition)
         {
             PFP2::MAP* map = mh_map->getMap();
-            VertexAttribute<PFP2::VEC3, PFP2::MAP> positionMap = mh_map->getAttribute<PFP2::VEC3, VERTEX>(positionName);
-
-            Decomposition* decomposition = m_decomposition;
-        }
-    }
-}
-
-void Surface_WaveletDecomposition_Plugin::analyzeFromDialog()
-{
-    QList<QListWidgetItem*> currentItems = m_waveletDecompositionDialog->list_maps->selectedItems();
-    if(!currentItems.empty() && m_decomposition)
-    {
-        const QString& mapName = currentItems[0]->text();
-        const QString& positionName = m_waveletDecompositionDialog->combo_positionAttribute->currentText();
-
-        MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(m_schnapps->getMap(mapName));
-
-        if(mh_map && m_decomposition)
-        {
-            PFP2::MAP* map = mh_map->getMap();
-            VertexAttribute<PFP2::VEC3, PFP2::MAP> positionMap = mh_map->getAttribute<PFP2::VEC3, VERTEX>(positionName);
 
             //We search the last level of decomposition
             Decomposition* decomposition = m_decomposition;
@@ -120,35 +94,17 @@ void Surface_WaveletDecomposition_Plugin::analyzeFromDialog()
                 decomposition = decomposition->getChild();
             }
 
-            if(decomposition->getCorrectionX()>2 && decomposition->getCorrectionY()>2)
+            while(decomposition->getCorrectionX()>2 && decomposition->getCorrectionY()>2)
             {
                 //If a decomposition is still feasible
                 decomposition = decomposition->addChild();
 
                 Decomposition* parent = decomposition->getParent();
 
-                //Création d'une nouvelle image composée uniquement des pairs
                 QImage& image_parent = parent->getImage();
 
-                int image_width = 0, image_height = 0;
-                int width_step = 0, height_step = 0;
-                switch(parent->getTransformationType())
-                {
-                case HORIZONTAL:
-                    image_width = image_parent.width()/2 + image_parent.width()%2;
-                    width_step = 2;
-                    image_height = image_parent.height();
-                    height_step = 1;
-                    break;
-                case VERTICAL:
-                    image_width = image_parent.width();
-                    width_step = 1;
-                    image_height = image_parent.height()/2 + image_parent.height()%2;
-                    height_step = 2;
-                    break;
-                default:
-                    break;
-                }
+                int image_width = image_parent.width()/2 + image_parent.width()%2;
+                int image_height = image_parent.height()/2 + image_parent.height()%2;
 
                 //Creation of a new image composed of the even of parent image
                 QImage image(image_width, image_height, image_parent.format());
@@ -157,72 +113,84 @@ void Surface_WaveletDecomposition_Plugin::analyzeFromDialog()
                 {
                     for(int j = 0; j < image_height; ++j)
                     {
-                        image.setPixel(i, j, image_parent.pixel(i*width_step, j*height_step));
+                        image.setPixel(i, j, image_parent.pixel(i*2, j*2));
                     }
                 }
 
                 decomposition->setImage(image);
 
                 //Creation of a matrix composed of the difference between odd of parent image and prediction value (linear interpolation)
-                int diff_red, diff_green, diff_blue;
-
                 QRgb cur_pixel;
-                switch(decomposition->getTransformationType())
+                NQRgb hori_pixel, vert_pixel;
+                for(int i = 0; i < image_parent.width(); ++i)
                 {
-                case HORIZONTAL:
-                    for(int i = 1; i < image_parent.width(); i += width_step)
+                    for(int j = 0; j < image_parent.height(); ++j)
                     {
-                        for(int j = 0; j < image_parent.height(); j += height_step)
+                        cur_pixel = image_parent.pixel(i, j);
+
+                        hori_pixel = NQRgb();
+                        vert_pixel = NQRgb();
+
+                        if(i%2==1)
                         {
-                            cur_pixel = image_parent.pixel(i, j);
                             if(i==image_parent.width()-1)
                             {
                                 //Mirror effect at the border of the image
-                                diff_red = qRed(cur_pixel) - qRed(image_parent.pixel(i-1,j));
-                                diff_green = qGreen(cur_pixel) - qGreen(image_parent.pixel(i-1,j));
-                                diff_blue = qBlue(cur_pixel) - qBlue(image_parent.pixel(i-1,j));
+                                hori_pixel.setRed(qRed(cur_pixel) - qRed(image_parent.pixel(i-1,j)));
+                                hori_pixel.setGreen(qGreen(cur_pixel) - qGreen(image_parent.pixel(i-1,j)));
+                                hori_pixel.setBlue(qBlue(cur_pixel) - qBlue(image_parent.pixel(i-1,j)));
                             }
                             else
                             {
-                                diff_red = qRed(cur_pixel) - 0.5*(qRed(image_parent.pixel(i-1,j))+qRed(image_parent.pixel(i+1,j)));
-                                diff_green = qGreen(cur_pixel) - 0.5*(qGreen(image_parent.pixel(i-1,j))+qGreen(image_parent.pixel(i+1,j)));
-                                diff_blue = qBlue(cur_pixel) - 0.5*(qBlue(image_parent.pixel(i-1,j))+qBlue(image_parent.pixel(i+1,j)));
+                                hori_pixel.setRed(qRed(cur_pixel) - 0.5*(qRed(image_parent.pixel(i-1,j))+qRed(image_parent.pixel(i+1,j))));
+                                hori_pixel.setGreen(qGreen(cur_pixel) - 0.5*(qGreen(image_parent.pixel(i-1,j))+qGreen(image_parent.pixel(i+1,j))));
+                                hori_pixel.setBlue(qBlue(cur_pixel) - 0.5*(qBlue(image_parent.pixel(i-1,j))+qBlue(image_parent.pixel(i+1,j))));
                             }
-                            parent->setCorrection(i, j, NQRgb(diff_red, diff_green, diff_blue));
+                            //Odd column number
+                            if(j%2==1)
+                            {
+                                //Odd line number
+                                if(j==image_parent.height()-1)
+                                {
+                                    //Mirror effect at the border of the image
+                                    vert_pixel.setRed(qRed(cur_pixel) - qRed(image_parent.pixel(i,j-1)));
+                                    vert_pixel.setGreen(qGreen(cur_pixel) - qGreen(image_parent.pixel(i,j-1)));
+                                    vert_pixel.setBlue(qBlue(cur_pixel) - qBlue(image_parent.pixel(i,j-1)));
+                                }
+                                else
+                                {
+                                    vert_pixel.setRed(qRed(cur_pixel) - 0.5*(qRed(image_parent.pixel(i,j-1))+qRed(image_parent.pixel(i,j+1))));
+                                    vert_pixel.setGreen(qGreen(cur_pixel) - 0.5*(qGreen(image_parent.pixel(i,j-1))+qGreen(image_parent.pixel(i,j+1))));
+                                    vert_pixel.setBlue(qBlue(cur_pixel) - 0.5*(qBlue(image_parent.pixel(i,j-1))+qBlue(image_parent.pixel(i,j+1))));
+                                }
+                            }
                         }
-                    }
-                    break;
-                case VERTICAL:
-                    for(int i = 0; i < image_parent.width(); i += width_step)
-                    {
-                        for(int j = 1; j < image_parent.height(); j += height_step)
+                        else
                         {
-                            cur_pixel = image_parent.pixel(i, j);
-                            if(j==image_parent.height()-1)
+                            if(j%2==1)
                             {
-                                //Mirror effect at the border of the image
-                                diff_red = qRed(cur_pixel) - qRed(image_parent.pixel(i,j-1));
-                                diff_green = qGreen(cur_pixel) - qGreen(image_parent.pixel(i,j-1));
-                                diff_blue = qBlue(cur_pixel) - qBlue(image_parent.pixel(i,j-1));
+                                //Odd line number
+                                if(j==image_parent.height()-1)
+                                {
+                                    //Mirror effect at the border of the image
+                                    vert_pixel.setRed(qRed(cur_pixel) - qRed(image_parent.pixel(i,j-1)));
+                                    vert_pixel.setGreen(qGreen(cur_pixel) - qGreen(image_parent.pixel(i,j-1)));
+                                    vert_pixel.setBlue(qBlue(cur_pixel) - qBlue(image_parent.pixel(i,j-1)));
+                                }
+                                else
+                                {
+                                    vert_pixel.setRed(qRed(cur_pixel) - 0.5*(qRed(image_parent.pixel(i,j-1))+qRed(image_parent.pixel(i,j+1))));
+                                    vert_pixel.setGreen(qGreen(cur_pixel) - 0.5*(qGreen(image_parent.pixel(i,j-1))+qGreen(image_parent.pixel(i,j+1))));
+                                    vert_pixel.setBlue(qBlue(cur_pixel) - 0.5*(qBlue(image_parent.pixel(i,j-1))+qBlue(image_parent.pixel(i,j+1))));
+                                }
                             }
-                            else
-                            {
-                                diff_red = qRed(cur_pixel) - 0.5*(qRed(image_parent.pixel(i,j-1))+qRed(image_parent.pixel(i,j+1)));
-                                diff_green = qGreen(cur_pixel) - 0.5*(qGreen(image_parent.pixel(i,j-1))+qGreen(image_parent.pixel(i,j+1)));
-                                diff_blue = qBlue(cur_pixel) - 0.5*(qBlue(image_parent.pixel(i,j-1))+qBlue(image_parent.pixel(i,j+1)));
-                            }
-                            parent->setCorrection(i, j, NQRgb(diff_red, diff_green, diff_blue));
                         }
+
+                        parent->setHorizontalCorrection(i, j, hori_pixel);
+                        parent->setVerticalCorrection(i, j, vert_pixel);
                     }
-                    break;
-                default:
-                    break;
                 }
                 CGoGNout << "New level of decomposition created" << CGoGNendl;
-            }
-            else
-            {
-                CGoGNerr << "No more decomposition possible" << CGoGNendl;
             }
         }
     }
@@ -242,36 +210,59 @@ void Surface_WaveletDecomposition_Plugin::saveImagesFromDialog()
             QString filename("/home/blettere/Projets/Models/Decomposition/");
             filename.append(mapName);
             filename.append("-");
+            QString filename2(filename);
             filename.append(QString::number(decomposition->getLevel()));
             filename.append(".png");
+
             if(!image.save(filename))
             {
                 CGoGNerr << "Image '" << filename.toStdString() << "' has not been saved" << CGoGNendl;
             }
 
+            filename2.append(QString::number(decomposition->getLevel()+2));
+            filename2.append("-difference");
+            filename = filename2;
+            filename.append("-horizontal.png");
+            filename2.append("-vertical.png");
+
             decomposition = decomposition->getChild();
-            if(decomposition && decomposition->getChild())
+
+            if(decomposition)
             {
-                decomposition = decomposition->getChild();
-            }
-            else
-            {
-                break;
+                QImage image2(decomposition->getCorrectionX(), decomposition->getCorrectionY(), image.format());
+                image = QImage(decomposition->getCorrectionX(), decomposition->getCorrectionY(), image2.format());
+                NQRgb correction;
+                for(int i = 0; i < decomposition->getCorrectionX(); ++i)
+                {
+                    for(int j = 0; j < decomposition->getCorrectionY(); ++j)
+                    {
+                        correction = decomposition->getHorizontalCorrection(i, j);
+                        image.setPixel(i, j, qRgb(qAbs(correction.getRed()), qAbs(correction.getGreen()), qAbs(correction.getBlue())));
+                        correction = decomposition->getVerticalCorrection(i, j);
+                        image2.setPixel(i, j, qRgb(qAbs(correction.getRed()), qAbs(correction.getGreen()), qAbs(correction.getBlue())));
+                    }
+                }
+
+                if(!image.save(filename))
+                {
+                    CGoGNerr << "Image '" << filename2.toStdString() << "' has not been saved" << CGoGNendl;
+                }
+
+                if(!image2.save(filename2))
+                {
+                    CGoGNerr << "Image '" << filename2.toStdString() << "' has not been saved" << CGoGNendl;
+                }
+
+                if(decomposition->getChild())
+                {
+                    decomposition = decomposition->getChild();
+                }
+                else
+                {
+                    break;
+                }
             }
         } while(decomposition);
-    }
-}
-
-void Surface_WaveletDecomposition_Plugin::completeAnalysisFromDialog()
-{
-    if(m_decomposition)
-    {
-        Decomposition* decomposition = m_decomposition;
-        do
-        {
-            analyzeFromDialog();
-            decomposition = decomposition->getChild();
-        } while(decomposition->getCorrectionX()>2 && decomposition->getCorrectionY()>2);
     }
 }
 
@@ -327,7 +318,7 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QStri
             }
         }
 
-        m_decomposition = new Decomposition(imageX/2, imageY, 0, HORIZONTAL);
+        m_decomposition = new Decomposition(imageX, imageY, 0);
 
         m_decomposition->setImage(image);
 
@@ -335,8 +326,8 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QStri
         mh_map->notifyAttributeModification(position);
         mh_map->notifyAttributeModification(color);
         mh_map->notifyConnectivityModification();
-        m_colorVBO->updateData(color);
         m_positionVBO->updateData(position);
+        m_colorVBO->updateData(color);
 
         m_toDraw = true;
 

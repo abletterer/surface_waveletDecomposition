@@ -27,7 +27,6 @@ public slots:
     void selectedMapChanged();
     void addMapToList(MapHandlerGen* map);
     void removeMapFromList(MapHandlerGen* map);
-    void addAttributeToList(unsigned int orbit, const QString& nameAttr);
 };
 
 } // namespace SCHNApps
