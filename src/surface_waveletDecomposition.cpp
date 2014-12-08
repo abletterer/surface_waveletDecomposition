@@ -219,11 +219,10 @@ void Surface_WaveletDecomposition_Plugin::saveImagesFromDialog()
                 CGoGNerr << "Image '" << filename.toStdString() << "' has not been saved" << CGoGNendl;
             }
 
-            filename2.append(QString::number(decomposition->getLevel()+2));
-            filename2.append("-difference");
+            filename2.append(QString::number(decomposition->getLevel()+1));
             filename = filename2;
-            filename.append("-horizontal.png");
-            filename2.append("-vertical.png");
+            filename.append("-horizontalCoherence.png");
+            filename2.append("-verticalCoherence.png");
 
             decomposition = decomposition->getChild();
 
@@ -251,15 +250,6 @@ void Surface_WaveletDecomposition_Plugin::saveImagesFromDialog()
                 if(!image2.save(filename2))
                 {
                     CGoGNerr << "Image '" << filename2.toStdString() << "' has not been saved" << CGoGNendl;
-                }
-
-                if(decomposition->getChild())
-                {
-                    decomposition = decomposition->getChild();
-                }
-                else
-                {
-                    break;
                 }
             }
         } while(decomposition);
