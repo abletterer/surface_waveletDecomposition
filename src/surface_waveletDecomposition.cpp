@@ -50,18 +50,18 @@ void Surface_WaveletDecomposition_Plugin::disable()
 
 void Surface_WaveletDecomposition_Plugin::drawMap(View* view, MapHandlerGen *map)
 {
-    if(m_toDraw && m_schnapps->getSelectedView() == view)
-    {
-        //If VBO are initialized
-        glPolygonMode(GL_FRONT, GL_FILL);
-        glEnable(GL_LIGHTING);
-        glEnable(GL_POLYGON_OFFSET_FILL);
-        m_colorPerVertexShader->setAttributePosition(m_positionVBO);
-        m_colorPerVertexShader->setAttributeColor(m_colorVBO);
-        m_colorPerVertexShader->setOpacity(1.0);
-        map->draw(m_colorPerVertexShader, CGoGN::Algo::Render::GL2::TRIANGLES);
-        glDisable(GL_POLYGON_OFFSET_FILL);
-    }
+//    if(m_toDraw && m_schnapps->getSelectedView() == view)
+//    {
+//        //If VBO are initialized
+//        glPolygonMode(GL_FRONT, GL_FILL);
+//        glEnable(GL_LIGHTING);
+//        glEnable(GL_POLYGON_OFFSET_FILL);
+//        m_colorPerVertexShader->setAttributePosition(m_positionVBO);
+//        m_colorPerVertexShader->setAttributeColor(m_colorVBO);
+//        m_colorPerVertexShader->setOpacity(1.0);
+//        map->draw(m_colorPerVertexShader, CGoGN::Algo::Render::GL2::TRIANGLES);
+//        glDisable(GL_POLYGON_OFFSET_FILL);
+//    }
 }
 
 void Surface_WaveletDecomposition_Plugin::openWaveletDecompositionDialog()
@@ -317,7 +317,7 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QStri
         mh_map->notifyAttributeModification(color);
         mh_map->notifyConnectivityModification();
         m_positionVBO->updateData(position);
-        m_colorVBO->updateData(color);
+        //m_colorVBO->updateData(color);
 
         m_toDraw = true;
 
