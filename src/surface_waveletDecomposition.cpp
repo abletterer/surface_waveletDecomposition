@@ -256,7 +256,7 @@ void Surface_WaveletDecomposition_Plugin::saveImagesFromDialog()
     }
 }
 
-MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QString& view, const QString& filename)
+MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QString& view, QString& filename, const bool multiple)
 {
     if(!filename.isEmpty())
     {
@@ -293,7 +293,29 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QStri
         int imageX = image.width(), imageY = image.height();
 
         Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, imageX-1, imageY-1);
-        grid.embedIntoGrid(position, imageX-1, imageY-1);
+        if(multiple)
+        {
+            QImage image_parent;
+            QString filename_parent = filename;
+
+            filename_parent.replace(filename_parent.size()-5, 1, "0");
+
+            CGoGNout << filename_parent.toStdString() << CGoGNendl;
+
+            if(!image_parent.load(filename_parent, extension.toUtf8().constData()))
+            {
+                CGoGNout << "Image has not been loaded correctly" << CGoGNendl;
+                return NULL;
+            }
+
+            int image_parentX = image_parent.width(), image_parentY = image_parent.height();
+
+            grid.embedIntoGrid(position, image_parentX-1, image_parentY-1);
+        }
+        else
+        {
+            grid.embedIntoGrid(position, imageX-1, imageY-1);
+        }
 
         std::vector<Dart> vDarts = grid.getVertexDarts();
 
