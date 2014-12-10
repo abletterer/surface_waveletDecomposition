@@ -103,8 +103,8 @@ void Surface_WaveletDecomposition_Plugin::decomposeFromDialog()
 
                 QImage& image_parent = parent->getImage();
 
-                int image_width = image_parent.width()/2 + image_parent.width()%2;
-                int image_height = image_parent.height()/2 + image_parent.height()%2;
+                int image_width = (image_parent.width()+image_parent.width()%2)/2;
+                int image_height = (image_parent.height()+image_parent.height()%2)/2;
 
                 //Creation of a new image composed of the even of parent image
                 QImage image(image_width, image_height, image_parent.format());
@@ -296,21 +296,21 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QStri
         if(multiple)
         {
             QImage image_parent;
-            QString filename_parent = filename;
+            QString filename_big_parent = filename, filename_parent;
 
-            filename_parent.replace(filename_parent.size()-5, 1, "0");
+            filename_big_parent.replace(filename_big_parent.size()-5, 1, "0");
+            filename_parent.replace(filename_parent.size()-5, 1, file[file.size()-1]);
+            //CORRECTION PAIR FAIT PERDRE 1 PIXEL A DROITE
 
-            CGoGNout << filename_parent.toStdString() << CGoGNendl;
-
-            if(!image_parent.load(filename_parent, extension.toUtf8().constData()))
+            if(!image_parent.load(filename_big_parent, extension.toUtf8().constData()))
             {
                 CGoGNout << "Image has not been loaded correctly" << CGoGNendl;
                 return NULL;
             }
 
-            int image_parentX = image_parent.width(), image_parentY = image_parent.height();
+            const int level = file[file.size()-1].digitValue();
 
-            grid.embedIntoGrid(position, image_parentX-1, image_parentY-1);
+            grid.embedIntoGrid(position, image_parent.width()-1+(image.width()%2==0?1:0)*level, image_parent.height()-1-(image.height()%2)*level);
         }
         else
         {

@@ -54,7 +54,7 @@ private slots:
 
 public slots:
 
-    MapHandlerGen* initializeObject(const QString& view, QString& filename, const bool multiple);
+    MapHandlerGen* initializeObject(const QString& view, QString& filename, const bool multiple=false);
 
 private:
     Dialog_Surface_WaveletDecomposition* m_waveletDecompositionDialog;
