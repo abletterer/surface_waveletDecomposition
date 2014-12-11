@@ -103,8 +103,8 @@ void Surface_WaveletDecomposition_Plugin::decomposeFromDialog()
 
                 QImage& image_parent = parent->getImage();
 
-                int image_width = (image_parent.width()+image_parent.width()%2)/2;
-                int image_height = (image_parent.height()+image_parent.height()%2)/2;
+                int image_width = image_parent.width()/2 + image_parent.width()%2;
+                int image_height = image_parent.height()/2 + image_parent.height()%2;
 
                 //Creation of a new image composed of the even of parent image
                 QImage image(image_width, image_height, image_parent.format());
@@ -296,21 +296,56 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QStri
         if(multiple)
         {
             QImage image_parent;
-            QString filename_big_parent = filename, filename_parent;
+            QString filename_parent = filename;
 
-            filename_big_parent.replace(filename_big_parent.size()-5, 1, "0");
-            filename_parent.replace(filename_parent.size()-5, 1, file[file.size()-1]);
-            //CORRECTION PAIR FAIT PERDRE 1 PIXEL A DROITE
+            filename_parent.replace(filename_parent.size()-5, 1, "0");
 
-            if(!image_parent.load(filename_big_parent, extension.toUtf8().constData()))
+            if(!image_parent.load(filename_parent, extension.toUtf8().constData()))
             {
                 CGoGNout << "Image has not been loaded correctly" << CGoGNendl;
                 return NULL;
             }
 
-            const int level = file[file.size()-1].digitValue();
+            //CORRECTION PAIR FAIT PERDRE 1 PIXEL A DROITE
+            int shift_counterX = 0, shift_counterY = 0, level_decomposition = 0;
+            int image_parentX = image_parent.width(), image_parentY = image_parent.height();
 
-            grid.embedIntoGrid(position, image_parent.width()-1+(image.width()%2==0?1:0)*level, image_parent.height()-1-(image.height()%2)*level);
+            while(image_parentX != imageX && image_parentY != imageY)
+            {
+                ++level_decomposition;
+
+                if(image_parentX%2 == 0)
+                {
+                    shift_counterX += level_decomposition;
+                }
+
+                if(image_parentY%2 == 0)
+                {
+                    shift_counterY += level_decomposition;
+                }
+
+                image_parentX = image_parentX/2+image_parentX%2;
+                image_parentY = image_parentY/2+image_parentY%2;
+            }
+
+            grid.embedIntoGrid(position, image_parent.width()-1, image_parent.height()-1);
+
+            mh_map->updateBB(position);
+
+            grid.embedIntoGrid(position, image_parent.width()-1-shift_counterX, image_parent.height()-1-shift_counterY);
+
+            PFP2::MATRIX44 transform_matrix;
+            transform_matrix.identity();
+
+            qglviewer::Vec max = mh_map->getBBmax();
+            qglviewer::Vec min = mh_map->getBBmin();
+
+            float width_step_parent = image_parent.width()/(max.x-min.x);
+            float height_step_parent = image_parent.height()/(max.y-min.y);
+
+            transform_matrix.setSubVectorV(0, 3, PFP2::VEC4(-width_step_parent*shift_counterX/2, +height_step_parent*shift_counterY/2, 0., 1.));
+
+            grid.transform(position, transform_matrix);
         }
         else
         {
