@@ -306,7 +306,6 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QStri
                 return NULL;
             }
 
-            //CORRECTION PAIR FAIT PERDRE 1 PIXEL A DROITE
             int shift_counterX = 0, shift_counterY = 0, level_decomposition = 0;
             int image_parentX = image_parent.width(), image_parentY = image_parent.height();
 
@@ -340,10 +339,10 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QStri
             qglviewer::Vec max = mh_map->getBBmax();
             qglviewer::Vec min = mh_map->getBBmin();
 
-            float width_step_parent = image_parent.width()/(max.x-min.x);
-            float height_step_parent = image_parent.height()/(max.y-min.y);
+            float width_step_parent = (image_parent.width()-1)/qAbs(max.x-min.x);
+            float height_step_parent = (image_parent.height()-1)/qAbs(max.y-min.y);
 
-            transform_matrix.setSubVectorV(0, 3, PFP2::VEC4(-width_step_parent*shift_counterX/2, +height_step_parent*shift_counterY/2, 0., 1.));
+            transform_matrix.setSubVectorV(0, 3, PFP2::VEC4(-width_step_parent*shift_counterX/2., height_step_parent*shift_counterY/2., 0., 1.));
 
             grid.transform(position, transform_matrix);
         }
