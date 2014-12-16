@@ -54,7 +54,10 @@ private slots:
 
 public slots:
 
-    MapHandlerGen* initializeObject(const QString& view, QString& filename, const bool multiple=false);
+    const QString initializeObject(const QString& view, QString& filename, const bool multiple=false);
+    void decompose();
+    void saveImages(const QString& name);
+    MapHandlerGen* drawCoarseImage(const QString& mapName);
 
 private:
     Dialog_Surface_WaveletDecomposition* m_waveletDecompositionDialog;
