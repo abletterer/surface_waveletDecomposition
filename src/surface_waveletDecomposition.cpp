@@ -313,19 +313,12 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::initializeObject(const QStri
             {
                 ++level_decomposition;
 
-                if(image_parentX%2 == 0)
-                {
-                    shift_counterX += level_decomposition;
-                }
-
-                if(image_parentY%2 == 0)
-                {
-                    shift_counterY += level_decomposition;
-                }
-
                 image_parentX = image_parentX/2+image_parentX%2;
                 image_parentY = image_parentY/2+image_parentY%2;
             }
+
+            shift_counterX = pow(2, level_decomposition)-1;
+            shift_counterY = pow(2, level_decomposition)-1;
 
             grid.embedIntoGrid(position, image_parent.width()-1, image_parent.height()-1);
 
