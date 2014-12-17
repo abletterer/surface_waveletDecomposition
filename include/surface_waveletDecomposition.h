@@ -5,6 +5,7 @@
 
 #include "dialog_surface_waveletDecomposition.h"
 #include "decomposition.h"
+#include "imageCoordinates.h"
 
 #include "camera.h"
 
@@ -34,7 +35,7 @@ public:
     virtual void disable();
 
     virtual void draw(View* view){}
-    virtual void drawMap(View* view, MapHandlerGen* map);
+    virtual void drawMap(View* view, MapHandlerGen* map) {}
 
     virtual void keyPress(View* view, QKeyEvent* event) {}
     virtual void keyRelease(View* view, QKeyEvent* event) {}
@@ -59,18 +60,19 @@ public slots:
     void saveImages(const QString& name);
     MapHandlerGen* drawCoarseImage(const QString& mapName);
 
+    void project2DImageTo3DSpace();
+
+    void moveUpDecomposition();
+    void moveDownDecomposition();
+    void triangulateMap(const QString& mapName);
+
 private:
     Dialog_Surface_WaveletDecomposition* m_waveletDecompositionDialog;
     QAction* m_waveletDecompositionAction;
 
 protected:
-    CGoGN::Utils::ShaderColorPerVertex* m_colorPerVertexShader;
-    Utils::VBO* m_positionVBO;
-    Utils::VBO* m_colorVBO;
-
-    bool m_toDraw;
-
     Decomposition* m_decomposition;
+    qglviewer::Camera* m_camera;
 };
 
 } // namespace SCHNApps

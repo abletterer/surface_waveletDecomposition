@@ -1,5 +1,5 @@
-#ifndef DECOMPOSITION_H
-#define DECOMPOSITION_H
+#ifndef _DECOMPOSITION_H_
+#define _DECOMPOSITION_H_
 
 #include <QImage>
 
@@ -20,22 +20,22 @@ class NQRgb
 {
 public:
     NQRgb(int red=0, int green=0, int blue=0)
-        : r(red), g(green), b(blue)
+        : m_r(red), m_g(green), m_b(blue)
     {}
 
     ~NQRgb()
     {}
 
-    int getRed() { return r; }
-    void setRed(int red) { r = red; }
+    int getRed() { return m_r; }
+    void setRed(int red) { m_r = red; }
 
-    int getGreen() { return g; }
-    void setGreen(int green) { g = green; }
+    int getGreen() { return m_g; }
+    void setGreen(int green) { m_g = green; }
 
-    int getBlue() { return b; }
-    void setBlue(int blue) { b = blue; }
+    int getBlue() { return m_b; }
+    void setBlue(int blue) { m_b = blue; }
 private:
-    int r, g, b;
+    int m_r, m_g, m_b;
 };
 
 class Decomposition
@@ -67,31 +67,47 @@ public:
 
     NQRgb& getHorizontalCorrection(const int x, const int y)
     {
-        if(x < m_correction_x && y < m_correction_y)
+        if(x >= 0 && y >= 0 && x < m_correction_x && y < m_correction_y)
         {
             return m_horizontal_correction[x+y*m_correction_x];
+        }
+        else
+        {
+            CGoGNerr << "Get : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x << ", " << m_correction_y << "}]" << CGoGNendl;
         }
     }
     void setHorizontalCorrection(const int x, const int y, const NQRgb& correction)
     {
-        if(x < m_correction_x && y < m_correction_y)
+        if(x >= 0 && y >= 0 && x < m_correction_x && y < m_correction_y)
         {
             m_horizontal_correction[x+y*m_correction_x] = correction;
+        }
+        else
+        {
+            CGoGNerr << "Set : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x << ", " << m_correction_y << "}]" << CGoGNendl;
         }
     }
 
     NQRgb& getVerticalCorrection(const int x, const int y)
     {
-        if(x < m_correction_x && y < m_correction_y)
+        if(x >= 0 && y >= 0 && x < m_correction_x && y < m_correction_y)
         {
             return m_vertical_correction[x+y*m_correction_x];
+        }
+        else
+        {
+            CGoGNerr << "Get : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x << ", " << m_correction_y << "}]" << CGoGNendl;
         }
     }
     void setVerticalCorrection(const int x, const int y, const NQRgb& correction)
     {
-        if(x < m_correction_x && y < m_correction_y)
+        if(x >= 0 && y >= 0 && x < m_correction_x && y < m_correction_y)
         {
             m_vertical_correction[x+y*m_correction_x] = correction;
+        }
+        else
+        {
+            CGoGNerr << "Set : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x << ", " << m_correction_y << "}]" << CGoGNendl;
         }
     }
 
@@ -124,4 +140,4 @@ private:
 }
 }
 
-#endif // DECOMPOSITION_H
+#endif
