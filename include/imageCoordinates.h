@@ -20,20 +20,20 @@ public:
     {
     }
 
-    void setCoordinates(float x, float y)
+    void setCoordinates(int x, int y)
     {
         m_x = x;
         m_y = y;
     }
 
-    float getXCoordinate() { return m_x; }
-    void setXCoordinate(float x)
+    int getXCoordinate() { return m_x; }
+    void setXCoordinate(int x)
     {
         m_x = x;
     }
 
-    float getYCoordinate() { return m_y; }
-    void setYCoordinate(float y)
+    int getYCoordinate() { return m_y; }
+    void setYCoordinate(int y)
     {
         m_y = y;
     }
@@ -49,7 +49,7 @@ public:
     }
 
 private:
-    float m_x, m_y;
+    int m_x, m_y;
 };
 
 } //namespace SCHNApps

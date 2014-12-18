@@ -78,7 +78,7 @@ const QString Surface_WaveletDecomposition_Plugin::initializeObject(const QStrin
         QImage image;
         if(!image.load(filename, extension.toUtf8().constData()))
         {
-            CGoGNout << "Image has not been loaded correctly" << CGoGNendl;
+            CGoGNerr << "Image has not been loaded correctly" << CGoGNendl;
             return NULL;
         }
         image = image.convertToFormat(QImage::Format_RGB32);
@@ -154,9 +154,9 @@ void Surface_WaveletDecomposition_Plugin::decompose()
                         }
                         else
                         {
-                            hori_pixel.setRed(qRed(cur_pixel) - 0.5*(qRed(image_parent.pixel(i-1,j))+qRed(image_parent.pixel(i+1,j))));
-                            hori_pixel.setGreen(qGreen(cur_pixel) - 0.5*(qGreen(image_parent.pixel(i-1,j))+qGreen(image_parent.pixel(i+1,j))));
-                            hori_pixel.setBlue(qBlue(cur_pixel) - 0.5*(qBlue(image_parent.pixel(i-1,j))+qBlue(image_parent.pixel(i+1,j))));
+                            hori_pixel.setRed(qRed(cur_pixel) - (qRed(image_parent.pixel(i-1,j))+qRed(image_parent.pixel(i+1,j)))/2);
+                            hori_pixel.setGreen(qGreen(cur_pixel) - (qGreen(image_parent.pixel(i-1,j))+qGreen(image_parent.pixel(i+1,j)))/2);
+                            hori_pixel.setBlue(qBlue(cur_pixel) - (qBlue(image_parent.pixel(i-1,j))+qBlue(image_parent.pixel(i+1,j)))/2);
                         }
                         if(j%2==1)
                         {
@@ -170,9 +170,9 @@ void Surface_WaveletDecomposition_Plugin::decompose()
                             }
                             else
                             {
-                                vert_pixel.setRed(qRed(cur_pixel) - 0.5*(qRed(image_parent.pixel(i,j-1))+qRed(image_parent.pixel(i,j+1))));
-                                vert_pixel.setGreen(qGreen(cur_pixel) - 0.5*(qGreen(image_parent.pixel(i,j-1))+qGreen(image_parent.pixel(i,j+1))));
-                                vert_pixel.setBlue(qBlue(cur_pixel) - 0.5*(qBlue(image_parent.pixel(i,j-1))+qBlue(image_parent.pixel(i,j+1))));
+                                vert_pixel.setRed(qRed(cur_pixel) - (qRed(image_parent.pixel(i,j-1))+qRed(image_parent.pixel(i,j+1)))/2);
+                                vert_pixel.setGreen(qGreen(cur_pixel) - (qGreen(image_parent.pixel(i,j-1))+qGreen(image_parent.pixel(i,j+1)))/2);
+                                vert_pixel.setBlue(qBlue(cur_pixel) - (qBlue(image_parent.pixel(i,j-1))+qBlue(image_parent.pixel(i,j+1)))/2);
                             }
                         }
                     }
@@ -190,9 +190,9 @@ void Surface_WaveletDecomposition_Plugin::decompose()
                             }
                             else
                             {
-                                vert_pixel.setRed(qRed(cur_pixel) - 0.5*(qRed(image_parent.pixel(i,j-1))+qRed(image_parent.pixel(i,j+1))));
-                                vert_pixel.setGreen(qGreen(cur_pixel) - 0.5*(qGreen(image_parent.pixel(i,j-1))+qGreen(image_parent.pixel(i,j+1))));
-                                vert_pixel.setBlue(qBlue(cur_pixel) - 0.5*(qBlue(image_parent.pixel(i,j-1))+qBlue(image_parent.pixel(i,j+1))));
+                                vert_pixel.setRed(qRed(cur_pixel) - (qRed(image_parent.pixel(i,j-1))+qRed(image_parent.pixel(i,j+1)))/2);
+                                vert_pixel.setGreen(qGreen(cur_pixel) - (qGreen(image_parent.pixel(i,j-1))+qGreen(image_parent.pixel(i,j+1)))/2);
+                                vert_pixel.setBlue(qBlue(cur_pixel) - (qBlue(image_parent.pixel(i,j-1))+qBlue(image_parent.pixel(i,j+1)))/2);
                             }
                         }
                     }
@@ -282,11 +282,11 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
             imageCoordinates = mh_map->addAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
         }
 
-        Decomposition* decomposition = m_decomposition;
-        while(decomposition->getChild())
-        {
-            decomposition = decomposition->getChild();
-        }
+        Decomposition* decomposition = m_decomposition->getChild();
+//        while(decomposition->getChild())
+//        {
+//            decomposition = decomposition->getChild();
+//        }
 
         QImage image = decomposition->getImage();
         int imageX = image.width(), imageY = image.height();
@@ -294,15 +294,19 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
         Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, imageX-1, imageY-1);
         grid.embedIntoGrid(position, imageX-1, imageY-1);
 
+        std::vector<Dart> vDarts = grid.getVertexDarts();
+
         mh_map->updateBB(position);
 
         qglviewer::Vec bb_max = mh_map->getBBmax();
         qglviewer::Vec bb_min = mh_map->getBBmin();
 
-        TraversorV<PFP2::MAP> trav_vert_map(*map);
-        for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
+        for(int i = 0; i < imageX; ++i)
         {
-            imageCoordinates[d].setCoordinates((position[d][0]-bb_min.x)/(bb_max.x-bb_min.x), (position[d][1]-bb_max.y)/(bb_min.y-bb_max.y));
+            for(int j = 0; j < imageY; ++j)
+            {
+                imageCoordinates[vDarts[j*imageX+i]].setCoordinates(i,imageY-j-1);
+            }
         }
 
         QImage image_parent = m_decomposition->getImage();
@@ -344,26 +348,27 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
         m_schnapps->getSelectedView()->updateGL();
 
         m_decomposition = decomposition;
-        m_camera = new qglviewer::Camera(*(m_schnapps->getSelectedView()->camera()));
-        m_camera->setZNearCoefficient(1.5f);
 
         return mhg_map;
     }
     return NULL;
 }
 
-void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace()
+void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace(const QString& mapName)
 {
-    QList<QListWidgetItem*> currentItems = m_waveletDecompositionDialog->list_maps->selectedItems();
-    if(!currentItems.empty() && m_decomposition)
+    if(m_decomposition)
     {
-        QString mapName = currentItems[0]->text();
-
         MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(m_schnapps->getMap(mapName));
 
         if(mh_map)
         {
             PFP2::MAP* map = mh_map->getMap();
+
+            if(!m_camera)
+            {
+                m_camera = new qglviewer::Camera(*(m_schnapps->getSelectedView()->camera()));
+                m_camera->setZNearCoefficient(1.f);
+            }
 
             VertexAttribute<PFP2::VEC3, PFP2::MAP> position = mh_map->getAttribute<PFP2::VEC3, VERTEX>("position");
             if(!position.isValid())
@@ -408,18 +413,19 @@ void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace()
 
                 float d_C_Xe = sqrt(d_C_Xh/d_C_Xc)*d_C_Xp;
 
-                PFP2::VEC3 space_point_position = (plane_point_position-camera_position)/d_C_Xp*(d_C_Xe+d_C_Xp);
-                position[d] = space_point_position;
+                position[d] = (plane_point_position-camera_position)/d_C_Xp*(d_C_Xe+d_C_Xp);
 
 //                PFP2::VEC4 homogeneous_position(position_map[d][0], position_map[d][1], -z_coordinate, 1.);    //Projection comme carte de hauteur
 //                position_map[d] = PFP2::VEC3(homogeneous_position[0]/homogeneous_position[3], homogeneous_position[1]/homogeneous_position[3], homogeneous_position[2]/homogeneous_position[3]);
             }
 
             mh_map->notifyAttributeModification(position);
-            mh_map->updateBB(position);
             mh_map->notifyConnectivityModification();
+            mh_map->updateBB(position);
 
             //camera->setSceneBoundingBox(mh_map->getBBmin(), mh_map->getBBmax());
+
+            m_schnapps->getSelectedView()->camera()->setSceneBoundingBox(mh_map->getBBmin(), mh_map->getBBmax());
 
             m_schnapps->getSelectedView()->updateGL();
         }
@@ -435,10 +441,15 @@ void Surface_WaveletDecomposition_Plugin::triangulateMap(const QString& mapName)
         if(mh_map)
         {
             PFP2::MAP* map = mh_map->getMap();
-            TraversorF<PFP2::MAP> trav_face_map(*map);
+            VertexAttribute<PFP2::VEC3, PFP2::MAP> position = mh_map->getAttribute<PFP2::VEC3, VERTEX>("position");
+            if(!position.isValid())
+            {
+                CGoGNerr << "Position attribute is not valid" << CGoGNendl;
+            }
 
             DartMarker<PFP2::MAP> marker(*map);
 
+            TraversorF<PFP2::MAP> trav_face_map(*map);
             for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = trav_face_map.next())
             {
                 if(!marker.isMarked(d))
@@ -449,23 +460,154 @@ void Surface_WaveletDecomposition_Plugin::triangulateMap(const QString& mapName)
                     marker.markOrbit<FACE>(phi_11_d);
                 }
             }
+
+            mh_map->notifyAttributeModification(position);
+            mh_map->notifyConnectivityModification();
+
+            m_schnapps->getSelectedView()->updateGL();
         }
     }
 }
 
-void Surface_WaveletDecomposition_Plugin::moveUpDecomposition()
+void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& mapName)
 {
     if(m_decomposition->getParent())
     {
-        m_decomposition = m_decomposition->getParent();
+        MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(m_schnapps->getMap(mapName));
+
+        if(mh_map)
+        {
+            PFP2::MAP* map = mh_map->getMap();
+
+            m_decomposition = m_decomposition->getParent();
+            QImage image = m_decomposition->getImage();
+
+            VertexAttribute<PFP2::VEC3, PFP2::MAP> position = mh_map->getAttribute<PFP2::VEC3, VERTEX>("position");
+            VertexAttribute<ImageCoordinates, PFP2::MAP> imageCoordinates = mh_map->getAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
+
+            qglviewer::Vec camera_p = m_camera->position();
+
+            PFP2::VEC3 camera_position = PFP2::VEC3(camera_p.x, camera_p.y, camera_p.z);
+
+            PFP2::VEC3 plane_center_position = camera_position;
+            plane_center_position[2] -= m_camera->zNear();
+
+            float d_C_Xc = (plane_center_position-camera_position).norm2();
+
+            DartMarker<PFP2::MAP> marker_edge(*map);
+            DartMarker<PFP2::MAP> marker_face(*map);
+            DartMarker<PFP2::MAP> marker_vertex(*map);
+
+            TraversorF<PFP2::MAP> trav_face_map(*map);
+            for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = trav_face_map.next())
+            {
+                if(!marker_face.isMarked(d))
+                {
+                    Traversor2FE<PFP2::MAP> trav_edge_face_map(*map, d);
+                    for(Dart dd = trav_edge_face_map.begin(); dd != trav_edge_face_map.end(); dd = trav_edge_face_map.next())
+                    {
+                        if(!marker_edge.isMarked(dd))
+                        {
+                            Dart dd1 = map->phi1(dd);
+                            Dart ddd = map->cutEdge(dd);
+                            marker_edge.markOrbit<EDGE>(dd);
+                            marker_edge.markOrbit<EDGE>(ddd);
+
+                            //Position  = projection du point du plan vers l'espace avec la caméra
+
+                            PFP2::VEC3 plane_point_position = plane_center_position;
+                            plane_point_position[0] += position[d][0];
+                            plane_point_position[1] += position[d][1];
+
+                            int prediction = (qRed(image.pixel(imageCoordinates[dd].getXCoordinate(), imageCoordinates[dd].getYCoordinate()))
+                                    + qRed(image.pixel(imageCoordinates[dd1].getXCoordinate(), imageCoordinates[dd1].getYCoordinate())))/2;
+
+                            if(!marker_vertex.isMarked(dd))
+                            {
+                                marker_vertex.markOrbit<VERTEX>(dd);
+                                imageCoordinates[dd].setXCoordinate(imageCoordinates[dd].getXCoordinate()*2);
+                                imageCoordinates[dd].setYCoordinate(imageCoordinates[dd].getYCoordinate()*2);
+                            }
+
+                            if(!marker_vertex.isMarked(dd1))
+                            {
+                                marker_vertex.markOrbit<VERTEX>(dd1);
+                                imageCoordinates[dd1].setXCoordinate(imageCoordinates[dd1].getXCoordinate()*2);
+                                imageCoordinates[dd1].setYCoordinate(imageCoordinates[dd1].getYCoordinate()*2);
+                            }
+
+                            int x = (imageCoordinates[dd].getXCoordinate()+imageCoordinates[dd1].getXCoordinate())/2;
+                            int y = (imageCoordinates[dd].getYCoordinate()+imageCoordinates[dd1].getYCoordinate())/2;
+
+                            NQRgb correction;
+
+                            if(imageCoordinates[dd].getXCoordinate()-imageCoordinates[dd1].getXCoordinate()==0)
+                            {
+                                //Point removed through horizontal decomposition
+                                correction = m_decomposition->getHorizontalCorrection(x/2, y/2);
+                            }
+                            else
+                            {
+                                //Point removed through vertical decomposition
+                                correction = m_decomposition->getVerticalCorrection(x/2, y/2);
+                            }
+
+                            float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-((prediction+correction.getRed())/255.f));
+
+                            PFP2::VEC3 projected_point_position = plane_center_position;
+                            projected_point_position[2] -= z_coordinate;
+
+                            float d_C_Xp = (plane_point_position-camera_position).norm();
+                            float d_C_Xh = (projected_point_position-camera_position).norm2();
+
+                            float d_C_Xe = sqrt(d_C_Xh/d_C_Xc)*d_C_Xp;
+
+//                            position[ddd] = (plane_point_position-camera_position)/d_C_Xp*(d_C_Xe+d_C_Xp);
+
+                            position[ddd] = (position[dd]+position[map->phi1(ddd)])/2.f;
+                        }
+                    }
+
+                    Dart d1 = map->phi<11>(d);
+                    Dart d11 = map->phi<11>(d1);
+
+                    map->splitFace(map->phi1(d), map->phi_1(d));
+                    map->splitFace(map->phi1(d1), map->phi_1(d1));
+                    map->splitFace(map->phi1(d11), map->phi_1(d11));
+                    marker_face.markOrbit<FACE>(d);
+                    marker_face.markOrbit<FACE>(d1);
+                    marker_face.markOrbit<FACE>(d11);
+                    marker_face.markOrbit<FACE>(map->phi<12>(d11));
+                }
+            }
+
+            mh_map->notifyAttributeModification(position);
+            mh_map->notifyAttributeModification(imageCoordinates);
+            mh_map->notifyConnectivityModification();
+            mh_map->updateBB(position);
+
+            m_schnapps->getSelectedView()->updateGL();
+        }
     }
 }
 
-void Surface_WaveletDecomposition_Plugin::moveDownDecomposition()
+void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& mapName)
 {
     if(m_decomposition->getChild())
     {
         m_decomposition = m_decomposition->getChild();
+
+        MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(m_schnapps->getMap(mapName));
+
+        if(mh_map)
+        {
+            PFP2::MAP* map = mh_map->getMap();
+            TraversorF<PFP2::MAP> trav_face_map(*map);
+
+            DartMarker<PFP2::MAP> marker(*map);
+
+            marker.markAll();
+        }
     }
 }
 

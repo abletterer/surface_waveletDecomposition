@@ -60,11 +60,11 @@ public slots:
     void saveImages(const QString& name);
     MapHandlerGen* drawCoarseImage(const QString& mapName);
 
-    void project2DImageTo3DSpace();
+    void project2DImageTo3DSpace(const QString& mapName);
 
-    void moveUpDecomposition();
-    void moveDownDecomposition();
     void triangulateMap(const QString& mapName);
+    void moveUpDecomposition(const QString& mapName);
+    void moveDownDecomposition(const QString& mapName);
 
 private:
     Dialog_Surface_WaveletDecomposition* m_waveletDecompositionDialog;
