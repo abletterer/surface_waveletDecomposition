@@ -85,7 +85,7 @@ const QString Surface_WaveletDecomposition_Plugin::initializeObject(const QStrin
 
         int imageX = image.width(), imageY = image.height();
 
-        m_decomposition = new Decomposition(imageX, imageY, 0);
+        m_decomposition = new Decomposition();
         m_decomposition->setImage(image);
 
         return file;
@@ -97,15 +97,14 @@ void Surface_WaveletDecomposition_Plugin::decompose()
 {
     if(m_decomposition)
     {
-
-        //We search the last level of decomposition
+        //We search the last level of decomposition already computed
         Decomposition* decomposition = m_decomposition;
         while(decomposition->getChild())
         {
             decomposition = decomposition->getChild();
         }
 
-        while(decomposition->getCorrectionX()>2 && decomposition->getCorrectionY()>2)
+        while(decomposition->getImage().width()>2 && decomposition->getImage().height()>2)
         {
             //If a decomposition is still feasible
             decomposition = decomposition->addChild();
@@ -133,9 +132,9 @@ void Surface_WaveletDecomposition_Plugin::decompose()
             //Creation of a matrix composed of the difference between odd of parent image and prediction value (linear interpolation)
             QRgb cur_pixel;
             NQRgb hori_pixel, vert_pixel;
-            for(int i = 0; i < parent->getCorrectionX(); ++i)
+            for(int i = 0; i < image_parent.width(); ++i)
             {
-                for(int j = 0; j < parent->getCorrectionY(); ++j)
+                for(int j = 0; j < image_parent.height(); ++j)
                 {
                     cur_pixel = image_parent.pixel(i, j);
 
@@ -196,8 +195,8 @@ void Surface_WaveletDecomposition_Plugin::decompose()
                             }
                         }
                     }
-                    parent->setHorizontalCorrection(i, j, hori_pixel);
-                    parent->setVerticalCorrection(i, j, vert_pixel);
+                    decomposition->setHorizontalCorrection(i/2, j/2, hori_pixel);
+                    decomposition->setVerticalCorrection(i/2, j/2, vert_pixel);
                 }
             }
             CGoGNout << "New level of decomposition created" << CGoGNendl;
@@ -282,11 +281,11 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
             imageCoordinates = mh_map->addAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
         }
 
-        Decomposition* decomposition = m_decomposition->getChild();
-//        while(decomposition->getChild())
-//        {
-//            decomposition = decomposition->getChild();
-//        }
+        Decomposition* decomposition = m_decomposition/*->getChild()->getChild()->getChild()*/;
+        while(decomposition->getChild())
+        {
+            decomposition = decomposition->getChild();
+        }
 
         QImage image = decomposition->getImage();
         int imageX = image.width(), imageY = image.height();
@@ -414,9 +413,6 @@ void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace(const QString&
                 float d_C_Xe = sqrt(d_C_Xh/d_C_Xc)*d_C_Xp;
 
                 position[d] = (plane_point_position-camera_position)/d_C_Xp*(d_C_Xe+d_C_Xp);
-
-//                PFP2::VEC4 homogeneous_position(position_map[d][0], position_map[d][1], -z_coordinate, 1.);    //Projection comme carte de hauteur
-//                position_map[d] = PFP2::VEC3(homogeneous_position[0]/homogeneous_position[3], homogeneous_position[1]/homogeneous_position[3], homogeneous_position[2]/homogeneous_position[3]);
             }
 
             mh_map->notifyAttributeModification(position);
@@ -479,24 +475,15 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
         {
             PFP2::MAP* map = mh_map->getMap();
 
-            m_decomposition = m_decomposition->getParent();
-            QImage image = m_decomposition->getImage();
-
             VertexAttribute<PFP2::VEC3, PFP2::MAP> position = mh_map->getAttribute<PFP2::VEC3, VERTEX>("position");
             VertexAttribute<ImageCoordinates, PFP2::MAP> imageCoordinates = mh_map->getAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
 
-            qglviewer::Vec camera_p = m_camera->position();
-
-            PFP2::VEC3 camera_position = PFP2::VEC3(camera_p.x, camera_p.y, camera_p.z);
-
-            PFP2::VEC3 plane_center_position = camera_position;
-            plane_center_position[2] -= m_camera->zNear();
-
-            float d_C_Xc = (plane_center_position-camera_position).norm2();
-
-            DartMarker<PFP2::MAP> marker_edge(*map);
+            DartMarker<PFP2::MAP> marker(*map);
             DartMarker<PFP2::MAP> marker_face(*map);
-            DartMarker<PFP2::MAP> marker_vertex(*map);
+            DartMarker<PFP2::MAP> marker_horizontal(*map);
+            DartMarker<PFP2::MAP> marker_vertical(*map);
+            DartMarker<PFP2::MAP> marker_diagonal(*map);
+            DartMarker<PFP2::MAP> marker_update(*map);
 
             TraversorF<PFP2::MAP> trav_face_map(*map);
             for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = trav_face_map.next())
@@ -506,68 +493,81 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                     Traversor2FE<PFP2::MAP> trav_edge_face_map(*map, d);
                     for(Dart dd = trav_edge_face_map.begin(); dd != trav_edge_face_map.end(); dd = trav_edge_face_map.next())
                     {
-                        if(!marker_edge.isMarked(dd))
+                        if(!marker.isMarked(dd))
                         {
                             Dart dd1 = map->phi1(dd);
                             Dart ddd = map->cutEdge(dd);
-                            marker_edge.markOrbit<EDGE>(dd);
-                            marker_edge.markOrbit<EDGE>(ddd);
+                            marker.markOrbit<EDGE>(dd);
+                            marker.markOrbit<EDGE>(ddd);
 
-                            //Position  = projection du point du plan vers l'espace avec la caméra
-
-                            PFP2::VEC3 plane_point_position = plane_center_position;
-                            plane_point_position[0] += position[d][0];
-                            plane_point_position[1] += position[d][1];
-
-                            int prediction = (qRed(image.pixel(imageCoordinates[dd].getXCoordinate(), imageCoordinates[dd].getYCoordinate()))
-                                    + qRed(image.pixel(imageCoordinates[dd1].getXCoordinate(), imageCoordinates[dd1].getYCoordinate())))/2;
-
-                            if(!marker_vertex.isMarked(dd))
+                            if(!marker_update.isMarked(dd))
                             {
-                                marker_vertex.markOrbit<VERTEX>(dd);
                                 imageCoordinates[dd].setXCoordinate(imageCoordinates[dd].getXCoordinate()*2);
                                 imageCoordinates[dd].setYCoordinate(imageCoordinates[dd].getYCoordinate()*2);
+                                marker_update.markOrbit<VERTEX>(dd);
                             }
 
-                            if(!marker_vertex.isMarked(dd1))
+                            if(!marker_update.isMarked(dd1))
                             {
-                                marker_vertex.markOrbit<VERTEX>(dd1);
                                 imageCoordinates[dd1].setXCoordinate(imageCoordinates[dd1].getXCoordinate()*2);
                                 imageCoordinates[dd1].setYCoordinate(imageCoordinates[dd1].getYCoordinate()*2);
+                                marker_update.markOrbit<VERTEX>(dd1);
                             }
 
-                            int x = (imageCoordinates[dd].getXCoordinate()+imageCoordinates[dd1].getXCoordinate())/2;
-                            int y = (imageCoordinates[dd].getYCoordinate()+imageCoordinates[dd1].getYCoordinate())/2;
+                            //Position = projection du point du plan vers l'espace avec la caméra
 
-                            NQRgb correction;
-
-                            if(imageCoordinates[dd].getXCoordinate()-imageCoordinates[dd1].getXCoordinate()==0)
+                            if(imageCoordinates[dd].getXCoordinate()==imageCoordinates[dd1].getXCoordinate())
                             {
-                                //Point removed through horizontal decomposition
-                                correction = m_decomposition->getHorizontalCorrection(x/2, y/2);
+                                marker_vertical.markOrbit<VERTEX>(ddd);
+                            }
+                            else if(imageCoordinates[dd].getYCoordinate()==imageCoordinates[dd1].getYCoordinate())
+                            {
+                                marker_horizontal.markOrbit<VERTEX>(ddd);
                             }
                             else
                             {
-                                //Point removed through vertical decomposition
-                                correction = m_decomposition->getVerticalCorrection(x/2, y/2);
+                                marker_diagonal.markOrbit<VERTEX>(ddd);
                             }
-
-                            float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-((prediction+correction.getRed())/255.f));
-
-                            PFP2::VEC3 projected_point_position = plane_center_position;
-                            projected_point_position[2] -= z_coordinate;
-
-                            float d_C_Xp = (plane_point_position-camera_position).norm();
-                            float d_C_Xh = (projected_point_position-camera_position).norm2();
-
-                            float d_C_Xe = sqrt(d_C_Xh/d_C_Xc)*d_C_Xp;
-
-//                            position[ddd] = (plane_point_position-camera_position)/d_C_Xp*(d_C_Xe+d_C_Xp);
-
-                            position[ddd] = (position[dd]+position[map->phi1(ddd)])/2.f;
+                            position[ddd] = (position[dd]+position[dd1])/2.f;
                         }
                     }
+                }
+            }
 
+            TraversorV<PFP2::MAP> trav_vert_map(*map);
+            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
+            {
+                if(marker_vertical.isMarked(d))
+                {
+                    Dart d_1 = map->phi_1(d);
+                    Dart d1 = map->phi1(d);
+                    imageCoordinates[d].setXCoordinate(imageCoordinates[d_1].getXCoordinate());
+                    imageCoordinates[d].setYCoordinate((imageCoordinates[d_1].getYCoordinate()+imageCoordinates[d1].getYCoordinate())/2);
+                }
+                else if(marker_horizontal.isMarked(d))
+                {
+                    Dart d_1 = map->phi_1(d);
+                    Dart d1 = map->phi1(d);
+                    imageCoordinates[d].setXCoordinate((imageCoordinates[d_1].getXCoordinate()+imageCoordinates[d1].getYCoordinate())/2);
+                    imageCoordinates[d].setYCoordinate(imageCoordinates[d_1].getYCoordinate());
+                }
+            }
+
+            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
+            {
+                if(marker_diagonal.isMarked(d))
+                {
+                    Dart d_1 = map->phi_1(map->phi2(d));
+                    Dart d1 = map->phi_1(map->phi_1(d));
+                    imageCoordinates[d].setXCoordinate((imageCoordinates[d_1].getXCoordinate()+imageCoordinates[d1].getXCoordinate())/2);
+                    imageCoordinates[d].setYCoordinate(imageCoordinates[d_1].getYCoordinate());
+                }
+            }
+
+            for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = trav_face_map.next())
+            {
+                if(!marker_face.isMarked(d))
+                {
                     Dart d1 = map->phi<11>(d);
                     Dart d11 = map->phi<11>(d1);
 
@@ -581,10 +581,61 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 }
             }
 
+            QImage image = m_decomposition->getImage();
+
+            qglviewer::Vec camera_p = m_camera->position();
+            PFP2::VEC3 camera_position = PFP2::VEC3(camera_p.x, camera_p.y, camera_p.z);
+
+            PFP2::VEC3 plane_center_position = camera_position;
+            plane_center_position[2] -= m_camera->zNear();
+
+            float d_C_Xc = (plane_center_position-camera_position).norm2();
+
+            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
+            {
+                if(marker_vertical.isMarked(d) || marker_horizontal.isMarked(d) || marker_diagonal.isMarked(d))
+                {
+                    int x = imageCoordinates[d].getXCoordinate();
+                    int y = imageCoordinates[d].getYCoordinate();
+
+                    int prediction;
+                    int correction;
+
+                    if(marker_vertical.isMarked(d))
+                    {
+                        prediction = (qRed(image.pixel(x/2, (y-1)/2)) + qRed(image.pixel(x/2, (y+1)/2)))/2;
+                        correction = m_decomposition->getVerticalCorrection(x/2, y/2).getRed();
+                    }
+                    else
+                    {
+                        prediction = (qRed(image.pixel((x-1)/2, y/2)) + qRed(image.pixel((x+1)/2, y/2)))/2;
+                        correction = m_decomposition->getHorizontalCorrection(x/2, y/2).getRed();
+                    }
+
+                    float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-((prediction+correction)/255.f));
+
+                    PFP2::VEC3 plane_point_position = plane_center_position;
+                    plane_point_position[0] += position[d][0];
+                    plane_point_position[1] += position[d][1];
+
+                    PFP2::VEC3 projected_point_position = plane_center_position;
+                    projected_point_position[2] -= z_coordinate;
+
+                    float d_C_Xp = (plane_point_position-camera_position).norm();
+                    float d_C_Xh = (projected_point_position-camera_position).norm2();
+
+                    float d_C_Xe = sqrt(d_C_Xh/d_C_Xc)*d_C_Xp;
+
+                    position[d] = (plane_point_position-camera_position)/d_C_Xp*(d_C_Xe+d_C_Xp);
+                }
+            }
+
             mh_map->notifyAttributeModification(position);
             mh_map->notifyAttributeModification(imageCoordinates);
             mh_map->notifyConnectivityModification();
             mh_map->updateBB(position);
+
+            m_decomposition = m_decomposition->getParent();
 
             m_schnapps->getSelectedView()->updateGL();
         }

@@ -13,7 +13,7 @@ class ImageCoordinates
 {
 public:
     ImageCoordinates()
-        : m_x(0.f), m_y(0.f)
+        : m_x(0), m_y(0)
     {}
 
     ~ImageCoordinates()

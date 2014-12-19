@@ -41,7 +41,7 @@ private:
 class Decomposition
 {
 public:
-    Decomposition(const int x, const int y, const short int level, Decomposition* parent = NULL)
+    Decomposition(const int x=0, const int y=0, const short int level=0, Decomposition* parent = NULL)
         : m_image(),
           m_correction_x(x), m_correction_y(y),
           m_horizontal_correction(x*y), m_vertical_correction(x*y),
@@ -116,7 +116,7 @@ public:
     {
         if(!m_child)
         {
-            m_child = new Decomposition(m_correction_x/2, m_correction_y/2, m_level+1, this);
+            m_child = new Decomposition(m_image.width()/2, m_image.height()/2, m_level+1, this);
             return m_child;
         }
         CGoGNerr << "Analysis already done for level " << m_level << CGoGNendl;
