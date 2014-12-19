@@ -107,11 +107,10 @@ void Surface_WaveletDecomposition_Plugin::decompose()
         while(decomposition->getImage().width()>2 && decomposition->getImage().height()>2)
         {
             //If a decomposition is still feasible
+
+            QImage& image_parent = decomposition->getImage();
+
             decomposition = decomposition->addChild();
-
-            Decomposition* parent = decomposition->getParent();
-
-            QImage& image_parent = parent->getImage();
 
             int image_width = image_parent.width()/2 + image_parent.width()%2;
             int image_height = image_parent.height()/2 + image_parent.height()%2;
@@ -136,26 +135,29 @@ void Surface_WaveletDecomposition_Plugin::decompose()
             {
                 for(int j = 0; j < image_parent.height(); ++j)
                 {
-                    cur_pixel = image_parent.pixel(i, j);
-
-                    hori_pixel = NQRgb();
-                    vert_pixel = NQRgb();
-
-                    if(i%2==1)
+                    if(i%2!=0 || j%2!=0)
                     {
-                        //Odd column number
-                        if(i==image_parent.width()-1)
+                        cur_pixel = image_parent.pixel(i, j);
+
+                        hori_pixel = NQRgb();
+                        vert_pixel = NQRgb();
+
+                        if(i%2==1)
                         {
-                            //Mirror effect at the border of the image
-                            hori_pixel.setRed(qRed(cur_pixel) - qRed(image_parent.pixel(i-1,j)));
-                            hori_pixel.setGreen(qGreen(cur_pixel) - qGreen(image_parent.pixel(i-1,j)));
-                            hori_pixel.setBlue(qBlue(cur_pixel) - qBlue(image_parent.pixel(i-1,j)));
-                        }
-                        else
-                        {
-                            hori_pixel.setRed(qRed(cur_pixel) - (qRed(image_parent.pixel(i-1,j))+qRed(image_parent.pixel(i+1,j)))/2);
-                            hori_pixel.setGreen(qGreen(cur_pixel) - (qGreen(image_parent.pixel(i-1,j))+qGreen(image_parent.pixel(i+1,j)))/2);
-                            hori_pixel.setBlue(qBlue(cur_pixel) - (qBlue(image_parent.pixel(i-1,j))+qBlue(image_parent.pixel(i+1,j)))/2);
+                            //Odd column number
+                            if(i==image_parent.width()-1)
+                            {
+                                //Mirror effect at the border of the image
+                                hori_pixel.setRed(qRed(cur_pixel) - qRed(image_parent.pixel(i-1,j)));
+                                hori_pixel.setGreen(qGreen(cur_pixel) - qGreen(image_parent.pixel(i-1,j)));
+                                hori_pixel.setBlue(qBlue(cur_pixel) - qBlue(image_parent.pixel(i-1,j)));
+                            }
+                            else
+                            {
+                                hori_pixel.setRed(qRed(cur_pixel) - (qRed(image_parent.pixel(i-1,j))+qRed(image_parent.pixel(i+1,j)))/2);
+                                hori_pixel.setGreen(qGreen(cur_pixel) - (qGreen(image_parent.pixel(i-1,j))+qGreen(image_parent.pixel(i+1,j)))/2);
+                                hori_pixel.setBlue(qBlue(cur_pixel) - (qBlue(image_parent.pixel(i-1,j))+qBlue(image_parent.pixel(i+1,j)))/2);
+                            }
                         }
                         if(j%2==1)
                         {
@@ -174,29 +176,9 @@ void Surface_WaveletDecomposition_Plugin::decompose()
                                 vert_pixel.setBlue(qBlue(cur_pixel) - (qBlue(image_parent.pixel(i,j-1))+qBlue(image_parent.pixel(i,j+1)))/2);
                             }
                         }
+                        decomposition->setHorizontalCorrection(i/2, j/2, hori_pixel);
+                        decomposition->setVerticalCorrection(i/2, j/2, vert_pixel);
                     }
-                    else
-                    {
-                        if(j%2==1)
-                        {
-                            //Odd line number
-                            if(j==image_parent.height()-1)
-                            {
-                                //Mirror effect at the border of the image
-                                vert_pixel.setRed(qRed(cur_pixel) - qRed(image_parent.pixel(i,j-1)));
-                                vert_pixel.setGreen(qGreen(cur_pixel) - qGreen(image_parent.pixel(i,j-1)));
-                                vert_pixel.setBlue(qBlue(cur_pixel) - qBlue(image_parent.pixel(i,j-1)));
-                            }
-                            else
-                            {
-                                vert_pixel.setRed(qRed(cur_pixel) - (qRed(image_parent.pixel(i,j-1))+qRed(image_parent.pixel(i,j+1)))/2);
-                                vert_pixel.setGreen(qGreen(cur_pixel) - (qGreen(image_parent.pixel(i,j-1))+qGreen(image_parent.pixel(i,j+1)))/2);
-                                vert_pixel.setBlue(qBlue(cur_pixel) - (qBlue(image_parent.pixel(i,j-1))+qBlue(image_parent.pixel(i,j+1)))/2);
-                            }
-                        }
-                    }
-                    decomposition->setHorizontalCorrection(i/2, j/2, hori_pixel);
-                    decomposition->setVerticalCorrection(i/2, j/2, vert_pixel);
                 }
             }
             CGoGNout << "New level of decomposition created" << CGoGNendl;
@@ -281,11 +263,11 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
             imageCoordinates = mh_map->addAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
         }
 
-        Decomposition* decomposition = m_decomposition/*->getChild()->getChild()->getChild()*/;
-        while(decomposition->getChild())
-        {
-            decomposition = decomposition->getChild();
-        }
+        Decomposition* decomposition = m_decomposition;
+//        while(decomposition->getChild())
+//        {
+//            decomposition = decomposition->getChild();
+//        }
 
         QImage image = decomposition->getImage();
         int imageX = image.width(), imageY = image.height();
@@ -591,6 +573,11 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
 
             float d_C_Xc = (plane_center_position-camera_position).norm2();
 
+            qglviewer::Vec bb_min = mh_map->getBBmin();
+            qglviewer::Vec bb_max = mh_map->getBBmax();
+
+            std::swap(bb_min.y, bb_max.y);
+
             for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
             {
                 if(marker_vertical.isMarked(d) || marker_horizontal.isMarked(d) || marker_diagonal.isMarked(d))
@@ -612,11 +599,11 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                         correction = m_decomposition->getHorizontalCorrection(x/2, y/2).getRed();
                     }
 
-                    float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-((prediction+correction)/255.f));
+                    float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-((prediction)/255.f));
 
                     PFP2::VEC3 plane_point_position = plane_center_position;
-                    plane_point_position[0] += position[d][0];
-                    plane_point_position[1] += position[d][1];
+                    plane_point_position[0] += (x-(bb_min.x+bb_max.x)/2)/(bb_max.x-bb_min.x);
+                    plane_point_position[1] += (y-(bb_min.y+bb_max.y)/2)/(bb_min.y-bb_max.y);
 
                     PFP2::VEC3 projected_point_position = plane_center_position;
                     projected_point_position[2] -= z_coordinate;

@@ -73,7 +73,7 @@ public:
         }
         else
         {
-            CGoGNerr << "Get : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x << ", " << m_correction_y << "}]" << CGoGNendl;
+            CGoGNerr << "Get : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x-1 << ", " << m_correction_y-1 << "}]" << CGoGNendl;
         }
     }
     void setHorizontalCorrection(const int x, const int y, const NQRgb& correction)
@@ -84,7 +84,7 @@ public:
         }
         else
         {
-            CGoGNerr << "Set : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x << ", " << m_correction_y << "}]" << CGoGNendl;
+            CGoGNerr << "Set : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x-1 << ", " << m_correction_y-1 << "}]" << CGoGNendl;
         }
     }
 
@@ -96,7 +96,7 @@ public:
         }
         else
         {
-            CGoGNerr << "Get : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x << ", " << m_correction_y << "}]" << CGoGNendl;
+            CGoGNerr << "Get : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x-1 << ", " << m_correction_y-1 << "}]" << CGoGNendl;
         }
     }
     void setVerticalCorrection(const int x, const int y, const NQRgb& correction)
@@ -107,7 +107,7 @@ public:
         }
         else
         {
-            CGoGNerr << "Set : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x << ", " << m_correction_y << "}]" << CGoGNendl;
+            CGoGNerr << "Set : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x-1 << ", " << m_correction_y-1 << "}]" << CGoGNendl;
         }
     }
 
@@ -116,7 +116,7 @@ public:
     {
         if(!m_child)
         {
-            m_child = new Decomposition(m_image.width()/2, m_image.height()/2, m_level+1, this);
+            m_child = new Decomposition(m_image.width()/2+1, m_image.height()/2+1, m_level+1, this);
             return m_child;
         }
         CGoGNerr << "Analysis already done for level " << m_level << CGoGNendl;
