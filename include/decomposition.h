@@ -23,6 +23,13 @@ public:
         : m_r(red), m_g(green), m_b(blue)
     {}
 
+    NQRgb(QRgb color)
+    {
+        m_r = qRed(color);
+        m_g = qGreen(color);
+        m_b = qBlue(color);
+    }
+
     ~NQRgb()
     {}
 
@@ -34,6 +41,27 @@ public:
 
     int getBlue() { return m_b; }
     void setBlue(int blue) { m_b = blue; }
+
+    void setMean(NQRgb a, NQRgb b)
+    {
+        m_r = (a.getRed() + b.getRed())/2;
+        m_g = (a.getGreen() + b.getGreen())/2;
+        m_b = (a.getBlue() + b.getBlue())/2;
+    }
+
+    NQRgb operator-(NQRgb rgb)
+    {
+        return NQRgb(m_r-rgb.getRed(), m_g-rgb.getGreen(), m_b-rgb.getBlue());
+    }
+
+    NQRgb operator-=(NQRgb rgb)
+    {
+        m_r -= rgb.getRed();
+        m_g -= rgb.getGreen();
+        m_b -= rgb.getBlue();
+        return *this;
+    }
+
 private:
     int m_r, m_g, m_b;
 };
@@ -41,100 +69,55 @@ private:
 class Decomposition
 {
 public:
-    Decomposition(const int x=0, const int y=0, const short int level=0, Decomposition* parent = NULL)
-        : m_image(),
-          m_correction_x(x), m_correction_y(y),
-          m_horizontal_correction(x*y), m_vertical_correction(x*y),
-          m_child(NULL),
-          m_parent(parent),
+    Decomposition(const int width, const int height, const int level = 0)
+        : m_width(width),
+          m_height(height),
+          m_matrix_decomposition(width*height),
           m_level(level)
     {
     }
 
     ~Decomposition()
+    {}
+
+    void setValue(const int x, const int y, const NQRgb& value)
     {
-        if(m_child)
-        {
-            delete m_child;
-        }
+        m_matrix_decomposition[x+m_width*y] = value;
     }
 
-    QImage& getImage() { return m_image; }
-    void setImage(const QImage& image) { m_image = image; }
-
-    int getCorrectionX() { return m_correction_x; }
-    int getCorrectionY() { return m_correction_y; }
-
-    NQRgb& getHorizontalCorrection(const int x, const int y)
+    NQRgb getValue(const int x, const int y)
     {
-        if(x >= 0 && y >= 0 && x < m_correction_x && y < m_correction_y)
+        if(x >= 0 && y >= 0 && x < m_width && y < m_height)
         {
-            return m_horizontal_correction[x+y*m_correction_x];
+            return m_matrix_decomposition[x+m_width*y];
         }
         else
         {
-            CGoGNerr << "Get : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x-1 << ", " << m_correction_y-1 << "}]" << CGoGNendl;
-        }
-    }
-    void setHorizontalCorrection(const int x, const int y, const NQRgb& correction)
-    {
-        if(x >= 0 && y >= 0 && x < m_correction_x && y < m_correction_y)
-        {
-            m_horizontal_correction[x+y*m_correction_x] = correction;
-        }
-        else
-        {
-            CGoGNerr << "Set : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x-1 << ", " << m_correction_y-1 << "}]" << CGoGNendl;
+            CGoGNerr << "Get : Indices {" << x << ", " << y << "} not in the range [0; {" << m_width-1 << ", " << m_height-1 << "}]" << CGoGNendl;
+            return NQRgb();
         }
     }
 
-    NQRgb& getVerticalCorrection(const int x, const int y)
+    int getWidth() { return m_width; }
+
+    int getHeight() { return m_height; }
+
+    const int getLevel() { return m_level; }
+    void setLevel(int level) { m_level = level; }
+    void getUpDecomposition() { --m_level; }
+    void getDownDecomposition() { ++m_level; }
+
+    void setMatrix(const std::vector<NQRgb>& matrix)
     {
-        if(x >= 0 && y >= 0 && x < m_correction_x && y < m_correction_y)
-        {
-            return m_vertical_correction[x+y*m_correction_x];
-        }
-        else
-        {
-            CGoGNerr << "Get : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x-1 << ", " << m_correction_y-1 << "}]" << CGoGNendl;
-        }
-    }
-    void setVerticalCorrection(const int x, const int y, const NQRgb& correction)
-    {
-        if(x >= 0 && y >= 0 && x < m_correction_x && y < m_correction_y)
-        {
-            m_vertical_correction[x+y*m_correction_x] = correction;
-        }
-        else
-        {
-            CGoGNerr << "Set : Indices {" << x << ", " << y << "} not in the range [0; {" << m_correction_x-1 << ", " << m_correction_y-1 << "}]" << CGoGNendl;
-        }
+        m_matrix_decomposition = std::vector<NQRgb>(matrix);
     }
 
-    Decomposition* getChild() { return m_child; }
-    Decomposition* addChild()
-    {
-        if(!m_child)
-        {
-            m_child = new Decomposition(m_image.width()/2+1, m_image.height()/2+1, m_level+1, this);
-            return m_child;
-        }
-        CGoGNerr << "Analysis already done for level " << m_level << CGoGNendl;
-        return this;
-    }
-
-    Decomposition* getParent() { return m_parent; }
-
-    short int getLevel() { return m_level; }
+    std::vector<NQRgb>* getMatrix() { return &m_matrix_decomposition; }
 
 private:
-    QImage m_image;
-    int m_correction_x, m_correction_y;
-    std::vector<NQRgb> m_horizontal_correction;
-    std::vector<NQRgb> m_vertical_correction;
-    Decomposition* m_child;
-    Decomposition* m_parent;
-    short int m_level;
+    int m_width, m_height;
+    std::vector<NQRgb> m_matrix_decomposition;
+    int m_level;
 };
 
 }

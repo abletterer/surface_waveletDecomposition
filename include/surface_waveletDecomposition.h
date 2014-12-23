@@ -55,9 +55,9 @@ private slots:
 
 public slots:
 
-    const QString initializeObject(const QString& view, QString& filename, const bool multiple=false);
+    const QString initializeObject(const QString& view, QString& filename, const bool multiple = false);
     void decompose();
-    void saveImages(const QString& name);
+    void saveImages(const QString& name, const QString& directory = "/home/bletterer/Projets/Models/Decomposition/");
     MapHandlerGen* drawCoarseImage(const QString& mapName);
 
     void project2DImageTo3DSpace(const QString& mapName);
