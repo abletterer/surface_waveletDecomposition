@@ -228,12 +228,6 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
         MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(mhg_map);
         PFP2::MAP* map = mh_map->getMap();
 
-        VertexAttribute<PFP2::VEC3, PFP2::MAP> position = mh_map->getAttribute<PFP2::VEC3, VERTEX>("position");
-        if(!position.isValid())
-        {
-            position = mh_map->addAttribute<PFP2::VEC3, VERTEX>("position");
-        }
-
         VertexAttribute<PFP2::VEC3, PFP2::MAP> planeCoordinates = mh_map->getAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
         if(!planeCoordinates.isValid())
         {
@@ -263,10 +257,11 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
         }
 
         mh_map->notifyConnectivityModification();
+        mh_map->updateBB(planeCoordinates);
         mh_map->notifyAttributeModification(planeCoordinates);
         mh_map->notifyAttributeModification(imageCoordinates);
 
-        m_schnapps->getSelectedView()->updateGL();
+        project2DImageTo3DSpace(mapName);
 
         return mhg_map;
     }
@@ -305,7 +300,7 @@ void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace(const QString&
             if(!m_camera)
             {
                 m_camera = new qglviewer::Camera(*(m_schnapps->getSelectedView()->camera()));
-                m_camera->setZNearCoefficient(0.5f);
+                m_camera->setZNearCoefficient(1.5f);
             }
 
             qglviewer::Vec camera_p = m_camera->position();
@@ -313,7 +308,7 @@ void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace(const QString&
             PFP2::VEC3 camera_position = PFP2::VEC3(camera_p.x, camera_p.y, camera_p.z);
 
             PFP2::VEC3 plane_center_position = camera_position;
-            plane_center_position[2] -= m_camera->zNear();
+            plane_center_position[2] -= m_camera->zNear()*200;
 
             float d_C_Xc = (plane_center_position-camera_position).norm2();
 
@@ -327,10 +322,10 @@ void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace(const QString&
 
                 NQRgb color = m_decomposition->getValue(imageCoordinates[d].getXCoordinate(), imageCoordinates[d].getYCoordinate());
 
-                float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-(qAbs(color.getRed())/255.f));
+                float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-(qAbs(color.getRed())/255.f))*200;
 
                 PFP2::VEC3 projected_point_position = plane_center_position;
-                projected_point_position[2] -= z_coordinate;
+                projected_point_position[2] = z_coordinate;
 
                 float d_C_Xp = (plane_point_position-camera_position).norm();
                 float d_C_Xh = (projected_point_position-camera_position).norm2();
@@ -356,11 +351,6 @@ void Surface_WaveletDecomposition_Plugin::triangulateMap(const QString& mapName)
         if(mh_map)
         {
             PFP2::MAP* map = mh_map->getMap();
-            VertexAttribute<PFP2::VEC3, PFP2::MAP> position = mh_map->getAttribute<PFP2::VEC3, VERTEX>("position");
-            if(!position.isValid())
-            {
-                CGoGNerr << "Position attribute is not valid" << CGoGNendl;
-            }
 
             DartMarker<PFP2::MAP> marker(*map);
 
@@ -376,7 +366,6 @@ void Surface_WaveletDecomposition_Plugin::triangulateMap(const QString& mapName)
                 }
             }
 
-            mh_map->notifyAttributeModification(position);
             mh_map->notifyConnectivityModification();
 
             m_schnapps->getSelectedView()->updateGL();
@@ -386,15 +375,17 @@ void Surface_WaveletDecomposition_Plugin::triangulateMap(const QString& mapName)
 
 void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& mapName)
 {
-    if(m_decomposition)
+    if(m_decomposition && m_decomposition->getLevel()>0)
     {
+
     }
 }
 
 void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& mapName)
 {
-    if(m_decomposition)
+    if(m_decomposition && (m_decomposition->getWidth()>=2 && m_decomposition->getHeight()>=2))
     {
+
     }
 }
 
