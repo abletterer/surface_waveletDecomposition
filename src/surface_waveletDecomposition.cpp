@@ -261,7 +261,7 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
         mh_map->notifyAttributeModification(planeCoordinates);
         mh_map->notifyAttributeModification(imageCoordinates);
 
-        project2DImageTo3DSpace(mapName);
+//        project2DImageTo3DSpace(mapName);
 
         return mhg_map;
     }
@@ -377,7 +377,114 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
 {
     if(m_decomposition && m_decomposition->getLevel()>0)
     {
+        MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(m_schnapps->getMap(mapName));
+        if(mh_map)
+        {
+            PFP2::MAP* map = mh_map->getMap();
 
+            VertexAttribute<PFP2::VEC3, PFP2::MAP> planeCoordinates = mh_map->getAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
+            if(!planeCoordinates.isValid())
+            {
+                CGoGNerr << "PlaneCoordinates attribute is not valid" << CGoGNendl;
+            }
+
+            VertexAttribute<ImageCoordinates, PFP2::MAP> imageCoordinates = mh_map->getAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
+            if(!imageCoordinates.isValid())
+            {
+                CGoGNerr << "ImageCoordinates attribute is not valid" << CGoGNendl;
+            }
+
+            DartMarker<PFP2::MAP> marker(*map);
+            DartMarker<PFP2::MAP> marker_face(*map);
+            DartMarker<PFP2::MAP> marker_horizontal(*map);
+            DartMarker<PFP2::MAP> marker_vertical(*map);
+            DartMarker<PFP2::MAP> marker_diagonal(*map);
+
+            TraversorF<PFP2::MAP> trav_face_map(*map);
+            for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = trav_face_map.next())
+            {
+                if(!marker_face.isMarked(d))
+                {
+                    Traversor2FE<PFP2::MAP> trav_edge_face_map(*map, d);
+                    for(Dart dd = trav_edge_face_map.begin(); dd != trav_edge_face_map.end(); dd = trav_edge_face_map.next())
+                    {
+                        if(!marker.isMarked(dd))
+                        {
+                            Dart dd1 = map->phi1(dd);
+                            Dart ddd = map->cutEdge(dd);
+                            marker.markOrbit<EDGE>(dd);
+                            marker.markOrbit<EDGE>(ddd);
+
+                            if(imageCoordinates[dd].getXCoordinate()==imageCoordinates[dd1].getXCoordinate())
+                            {
+                                marker_vertical.markOrbit<VERTEX>(ddd);
+                            }
+                            else if(imageCoordinates[dd].getYCoordinate()==imageCoordinates[dd1].getYCoordinate())
+                            {
+                                marker_horizontal.markOrbit<VERTEX>(ddd);
+                            }
+                            else
+                            {
+                                marker_diagonal.markOrbit<VERTEX>(ddd);
+                            }
+                            planeCoordinates[ddd] = (planeCoordinates[dd]+planeCoordinates[dd1])/2.f;
+                        }
+                    }
+                }
+            }
+
+            TraversorV<PFP2::MAP> trav_vert_map(*map);
+            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
+            {
+                if(marker_vertical.isMarked(d))
+                {
+                    Dart d_1 = map->phi_1(d);
+                    Dart d1 = map->phi1(d);
+                    imageCoordinates[d].setXCoordinate(imageCoordinates[d_1].getXCoordinate());
+                    imageCoordinates[d].setYCoordinate((imageCoordinates[d_1].getYCoordinate()+imageCoordinates[d1].getYCoordinate())/2);
+                }
+                else if(marker_horizontal.isMarked(d))
+                {
+                    Dart d_1 = map->phi_1(d);
+                    Dart d1 = map->phi1(d);
+                    imageCoordinates[d].setXCoordinate((imageCoordinates[d_1].getXCoordinate()+imageCoordinates[d1].getYCoordinate())/2);
+                    imageCoordinates[d].setYCoordinate(imageCoordinates[d_1].getYCoordinate());
+                }
+            }
+
+            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
+            {
+                if(marker_diagonal.isMarked(d))
+                {
+                    Dart d_1 = map->phi_1(map->phi2(d));
+                    Dart d1 = map->phi_1(map->phi_1(d));
+                    imageCoordinates[d].setXCoordinate((imageCoordinates[d_1].getXCoordinate()+imageCoordinates[d1].getXCoordinate())/2);
+                    imageCoordinates[d].setYCoordinate(imageCoordinates[d_1].getYCoordinate());
+                }
+            }
+
+            for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = trav_face_map.next())
+            {
+                if(!marker_face.isMarked(d))
+                {
+                    Dart d1 = map->phi<11>(d);
+                    Dart d11 = map->phi<11>(d1);
+
+                    map->splitFace(map->phi1(d), map->phi_1(d));
+                    map->splitFace(map->phi1(d1), map->phi_1(d1));
+                    map->splitFace(map->phi1(d11), map->phi_1(d11));
+                    marker_face.markOrbit<FACE>(d);
+                    marker_face.markOrbit<FACE>(d1);
+                    marker_face.markOrbit<FACE>(d11);
+                    marker_face.markOrbit<FACE>(map->phi<12>(d11));
+                }
+            }
+
+            mh_map->notifyAttributeModification(planeCoordinates);
+            mh_map->notifyAttributeModification(imageCoordinates);
+
+            m_schnapps->getSelectedView()->updateGL();
+        }
     }
 }
 
