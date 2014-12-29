@@ -13,6 +13,8 @@
 
 #include "Algo/Tiling/Surface/square.h"
 
+#include "Utils/chrono.h"
+
 namespace CGoGN
 {
 

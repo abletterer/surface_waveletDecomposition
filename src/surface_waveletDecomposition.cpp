@@ -224,6 +224,10 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
 {
     if(m_decomposition)
     {
+        CGoGNout << "Drawing image .." << CGoGNflush;
+        Utils::Chrono chrono;
+        chrono.start();
+
         MapHandlerGen* mhg_map = m_schnapps->addMap(mapName, 2);
         MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(mhg_map);
         PFP2::MAP* map = mh_map->getMap();
@@ -252,7 +256,7 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
         {
             for(int j = 0; j < image_min_height; ++j)
             {
-                imageCoordinates[vDarts[j*image_min_width+i]].setCoordinates(i,image_min_height-j-1);
+                imageCoordinates[vDarts[j*image_min_width+i]].setCoordinates(i, image_min_height-j-1);
             }
         }
 
@@ -260,6 +264,8 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
         mh_map->updateBB(planeCoordinates);
         mh_map->notifyAttributeModification(planeCoordinates);
         mh_map->notifyAttributeModification(imageCoordinates);
+
+        CGoGNout << ".. finished in " << chrono.elapsed() << " ms." << CGoGNendl;
 
 //        project2DImageTo3DSpace(mapName);
 
@@ -394,11 +400,12 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 CGoGNerr << "ImageCoordinates attribute is not valid" << CGoGNendl;
             }
 
+            int width = m_decomposition->getWidth()/pow(2, m_decomposition->getLevel());
+            int height = m_decomposition->getHeight()/pow(2, m_decomposition->getLevel());
+
             DartMarker<PFP2::MAP> marker(*map);
             DartMarker<PFP2::MAP> marker_face(*map);
-            DartMarker<PFP2::MAP> marker_horizontal(*map);
-            DartMarker<PFP2::MAP> marker_vertical(*map);
-            DartMarker<PFP2::MAP> marker_diagonal(*map);
+            DartMarker<PFP2::MAP> marker_horizontal(*map), marker_vertical(*map), marker_diagonal(*map);
 
             TraversorF<PFP2::MAP> trav_face_map(*map);
             for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = trav_face_map.next())
@@ -439,27 +446,20 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 if(marker_vertical.isMarked(d))
                 {
                     Dart d_1 = map->phi_1(d);
-                    Dart d1 = map->phi1(d);
                     imageCoordinates[d].setXCoordinate(imageCoordinates[d_1].getXCoordinate());
-                    imageCoordinates[d].setYCoordinate((imageCoordinates[d_1].getYCoordinate()+imageCoordinates[d1].getYCoordinate())/2);
+                    imageCoordinates[d].setYCoordinate(height+imageCoordinates[d_1].getYCoordinate());
                 }
                 else if(marker_horizontal.isMarked(d))
                 {
                     Dart d_1 = map->phi_1(d);
-                    Dart d1 = map->phi1(d);
-                    imageCoordinates[d].setXCoordinate((imageCoordinates[d_1].getXCoordinate()+imageCoordinates[d1].getYCoordinate())/2);
+                    imageCoordinates[d].setXCoordinate(width+imageCoordinates[d_1].getXCoordinate());
                     imageCoordinates[d].setYCoordinate(imageCoordinates[d_1].getYCoordinate());
                 }
-            }
-
-            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
-            {
-                if(marker_diagonal.isMarked(d))
+                else if(marker_diagonal.isMarked(d))
                 {
                     Dart d_1 = map->phi_1(map->phi2(d));
-                    Dart d1 = map->phi_1(map->phi_1(d));
-                    imageCoordinates[d].setXCoordinate((imageCoordinates[d_1].getXCoordinate()+imageCoordinates[d1].getXCoordinate())/2);
-                    imageCoordinates[d].setYCoordinate(imageCoordinates[d_1].getYCoordinate());
+                    imageCoordinates[d].setXCoordinate(width+imageCoordinates[d_1].getXCoordinate());
+                    imageCoordinates[d].setYCoordinate(height+imageCoordinates[d_1].getYCoordinate());
                 }
             }
 
@@ -479,6 +479,17 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                     marker_face.markOrbit<FACE>(map->phi<12>(d11));
                 }
             }
+
+            marker_face.unmarkAll();
+
+//            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
+//            {
+//                if(!marker_face.isMarked(d))
+//                {
+//                    if(imageCoordinates[d]==)
+//                    marker_face.markOrbit<FACE>(d);
+//                }
+//            }
 
             mh_map->notifyAttributeModification(planeCoordinates);
             mh_map->notifyAttributeModification(imageCoordinates);
