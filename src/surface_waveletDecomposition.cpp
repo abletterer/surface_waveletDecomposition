@@ -447,19 +447,19 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 {
                     Dart d_1 = map->phi_1(d);
                     imageCoordinates[d].setXCoordinate(imageCoordinates[d_1].getXCoordinate());
-                    imageCoordinates[d].setYCoordinate(height+imageCoordinates[d_1].getYCoordinate());
+                    imageCoordinates[d].setYCoordinate(height-1+imageCoordinates[d_1].getYCoordinate());
                 }
                 else if(marker_horizontal.isMarked(d))
                 {
                     Dart d_1 = map->phi_1(d);
-                    imageCoordinates[d].setXCoordinate(width+imageCoordinates[d_1].getXCoordinate());
+                    imageCoordinates[d].setXCoordinate(width-1+imageCoordinates[d_1].getXCoordinate());
                     imageCoordinates[d].setYCoordinate(imageCoordinates[d_1].getYCoordinate());
                 }
                 else if(marker_diagonal.isMarked(d))
                 {
                     Dart d_1 = map->phi_1(map->phi2(d));
-                    imageCoordinates[d].setXCoordinate(width+imageCoordinates[d_1].getXCoordinate());
-                    imageCoordinates[d].setYCoordinate(height+imageCoordinates[d_1].getYCoordinate());
+                    imageCoordinates[d].setXCoordinate(width-1+imageCoordinates[d_1].getXCoordinate());
+                    imageCoordinates[d].setYCoordinate(height-1+imageCoordinates[d_1].getYCoordinate());
                 }
             }
 
@@ -482,14 +482,10 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
 
             marker_face.unmarkAll();
 
-//            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
-//            {
-//                if(!marker_face.isMarked(d))
-//                {
-//                    if(imageCoordinates[d]==)
-//                    marker_face.markOrbit<FACE>(d);
-//                }
-//            }
+            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
+            {
+                CGoGNout << imageCoordinates[d].getXCoordinate() << " ; " << imageCoordinates[d].getYCoordinate() << CGoGNendl;
+            }
 
             mh_map->notifyAttributeModification(planeCoordinates);
             mh_map->notifyAttributeModification(imageCoordinates);
