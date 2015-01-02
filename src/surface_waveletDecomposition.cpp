@@ -179,6 +179,7 @@ void Surface_WaveletDecomposition_Plugin::decompose()
 
             img_width  = img_width2;
             img_height = img_height2;
+            stop = true;
             if(img_width < 2 || img_height < 2)
             {
                 stop = true;
@@ -388,6 +389,12 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
         {
             PFP2::MAP* map = mh_map->getMap();
 
+            VertexAttribute<PFP2::VEC3, PFP2::MAP> position = mh_map->getAttribute<PFP2::VEC3, VERTEX>("position");
+            if(!position.isValid())
+            {
+                CGoGNerr << "position attribute is not valid" << CGoGNendl;
+            }
+
             VertexAttribute<PFP2::VEC3, PFP2::MAP> planeCoordinates = mh_map->getAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
             if(!planeCoordinates.isValid())
             {
@@ -445,21 +452,22 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             {
                 if(marker_vertical.isMarked(d))
                 {
-                    Dart d_1 = map->phi_1(d);
-                    imageCoordinates[d].setXCoordinate(imageCoordinates[d_1].getXCoordinate());
-                    imageCoordinates[d].setYCoordinate(height-1+imageCoordinates[d_1].getYCoordinate());
+                    Dart d_1 = map->phi_1(d), d1 = map->phi1(d);
+                    int min = imageCoordinates[d_1].getYCoordinate()>imageCoordinates[d1].getYCoordinate()?imageCoordinates[d1].getYCoordinate():imageCoordinates[d_1].getYCoordinate();
+                    imageCoordinates[d].setCoordinates(imageCoordinates[d_1].getXCoordinate(), height+min);
                 }
                 else if(marker_horizontal.isMarked(d))
                 {
-                    Dart d_1 = map->phi_1(d);
-                    imageCoordinates[d].setXCoordinate(width-1+imageCoordinates[d_1].getXCoordinate());
-                    imageCoordinates[d].setYCoordinate(imageCoordinates[d_1].getYCoordinate());
+                    Dart d_1 = map->phi_1(d), d1 = map->phi1(d);
+                    int min = imageCoordinates[d_1].getXCoordinate()>imageCoordinates[d1].getXCoordinate()?imageCoordinates[d1].getXCoordinate():imageCoordinates[d_1].getXCoordinate();
+                    imageCoordinates[d].setCoordinates(width+min, imageCoordinates[d_1].getYCoordinate());
                 }
                 else if(marker_diagonal.isMarked(d))
                 {
-                    Dart d_1 = map->phi_1(map->phi2(d));
-                    imageCoordinates[d].setXCoordinate(width-1+imageCoordinates[d_1].getXCoordinate());
-                    imageCoordinates[d].setYCoordinate(height-1+imageCoordinates[d_1].getYCoordinate());
+                    Dart d_1 = map->phi_1(map->phi2(d)), d1 = map->phi1(map->phi2(d));
+                    int min_x = imageCoordinates[d_1].getXCoordinate()>imageCoordinates[d1].getXCoordinate()?imageCoordinates[d1].getXCoordinate():imageCoordinates[d_1].getXCoordinate();
+                    int min_y = imageCoordinates[d_1].getYCoordinate()>imageCoordinates[d1].getYCoordinate()?imageCoordinates[d1].getYCoordinate():imageCoordinates[d_1].getYCoordinate();
+                    imageCoordinates[d].setCoordinates(width+min_x, height+min_y);
                 }
             }
 
@@ -484,11 +492,15 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
 
             for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
             {
-                CGoGNout << imageCoordinates[d].getXCoordinate() << " ; " << imageCoordinates[d].getYCoordinate() << CGoGNendl;
+                if(position[d]==PFP2::VEC3())
+                {
+                    //CGoGNout << imageCoordinates[d].getXCoordinate() << " ; " << imageCoordinates[d].getYCoordinate() << CGoGNendl;
+                }
             }
 
             mh_map->notifyAttributeModification(planeCoordinates);
             mh_map->notifyAttributeModification(imageCoordinates);
+            mh_map->notifyConnectivityModification();
 
             m_schnapps->getSelectedView()->updateGL();
         }
