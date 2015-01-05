@@ -44,9 +44,22 @@ public:
 
     void setMean(NQRgb a, NQRgb b)
     {
-        m_r = (a.getRed() + b.getRed())/2;
-        m_g = (a.getGreen() + b.getGreen())/2;
-        m_b = (a.getBlue() + b.getBlue())/2;
+        m_r = round((a.getRed() + b.getRed())/2.f);
+        m_g = round((a.getGreen() + b.getGreen())/2.f);
+        m_b = round((a.getBlue() + b.getBlue())/2.f);
+    }
+
+    NQRgb operator+(NQRgb rgb)
+    {
+        return NQRgb(m_r+rgb.getRed(), m_g+rgb.getGreen(), m_b+rgb.getBlue());
+    }
+
+    NQRgb operator+=(NQRgb rgb)
+    {
+        m_r += rgb.getRed();
+        m_g += rgb.getGreen();
+        m_b += rgb.getBlue();
+        return *this;
     }
 
     NQRgb operator-(NQRgb rgb)
@@ -59,6 +72,19 @@ public:
         m_r -= rgb.getRed();
         m_g -= rgb.getGreen();
         m_b -= rgb.getBlue();
+        return *this;
+    }
+
+    NQRgb operator/(const float value)
+    {
+        return NQRgb(round(m_r/value), round(m_g/value), round(m_b/value));
+    }
+
+    NQRgb operator/=(const float value)
+    {
+        m_r = round(m_r/value);
+        m_g = round(m_g/value);
+        m_b = round(m_b/value);
         return *this;
     }
 
