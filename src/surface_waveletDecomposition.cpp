@@ -341,8 +341,8 @@ void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace(const QString&
                 float d_C_Xe = sqrt(d_C_Xh/d_C_Xc)*d_C_Xp;
 
                 position[d] = (plane_point_position-camera_position)/d_C_Xp*(d_C_Xe+d_C_Xp);
-                position[d] = plane_point_position;
-                position[d][2] += (m_camera->zFar()-m_camera->zNear())*200;
+//                position[d] = plane_point_position;
+//                position[d][2] += (m_camera->zFar()-m_camera->zNear())*200;
             }
 
             mh_map->notifyAttributeModification(position);
@@ -531,20 +531,20 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 {
                     Dart d_1 = map->phi_1(*d), d1 = map->phi1(*d);
                     int min = imageCoordinates[d_1].getXCoordinate()>imageCoordinates[d1].getXCoordinate()?imageCoordinates[d1].getXCoordinate():imageCoordinates[d_1].getXCoordinate();
-                    imageCoordinates[*d].setCoordinates(min+1, imageCoordinates[d_1].getYCoordinate());
+                    imageCoordinates[*d].setCoordinates((min*2+1), imageCoordinates[d_1].getYCoordinate()*2);
                 }
                 else if(marker_vertical.isMarked(*d))
                 {
                     Dart d_1 = map->phi_1(*d), d1 = map->phi1(*d);
                     int min = imageCoordinates[d_1].getYCoordinate()>imageCoordinates[d1].getYCoordinate()?imageCoordinates[d1].getYCoordinate():imageCoordinates[d_1].getYCoordinate();
-                    imageCoordinates[*d].setCoordinates(imageCoordinates[d_1].getXCoordinate(), min+1);
+                    imageCoordinates[*d].setCoordinates(imageCoordinates[d_1].getXCoordinate()*2, (min*2+1));
                 }
                 else if(marker_diagonal.isMarked(*d))
                 {
-                    Dart d_1 = map->phi_1(map->phi2(*d)), d1 = map->phi1(map->phi2(*d));
+                    Dart d_1 = map->phi_1(map->phi2(*d)), d1 = map->phi2(*d);
                     int min_x = imageCoordinates[d_1].getXCoordinate()>imageCoordinates[d1].getXCoordinate()?imageCoordinates[d1].getXCoordinate():imageCoordinates[d_1].getXCoordinate();
                     int min_y = imageCoordinates[d_1].getYCoordinate()>imageCoordinates[d1].getYCoordinate()?imageCoordinates[d1].getYCoordinate():imageCoordinates[d_1].getYCoordinate();
-                    imageCoordinates[*d].setCoordinates(min_x+1, min_y+1);
+                    imageCoordinates[*d].setCoordinates((min_x*2+1), (min_y*2+1));
                 }
             }
 
