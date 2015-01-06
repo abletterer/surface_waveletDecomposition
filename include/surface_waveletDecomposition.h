@@ -63,7 +63,7 @@ public slots:
     MapHandlerGen* drawCoarseImage(const QString& mapName);
 
     void project2DImageTo3DSpace(const QString& mapName);
-    void projectNewPointsTo3DSpace(MapHandler<PFP2>* mh_map, const std::vector<Dart>& vertices, const std::vector<NQRgb>& matrix);
+    void projectNewPointsTo3DSpace(MapHandler<PFP2>* mh_map, const std::vector<Dart>& vertices, const std::vector<int>& matrix);
 
     void triangulateMap(const QString& mapName);
     void moveUpDecomposition(const QString& mapName);

@@ -91,7 +91,7 @@ const QString Surface_WaveletDecomposition_Plugin::initializeObject(const QStrin
         {
             for(int j = 0; j < height; ++j)
             {
-                m_decomposition->setValue(i, height-j-1, NQRgb(image.pixel(i, height-j-1)));
+                m_decomposition->setCoefficient(i, height-j-1, qRed(image.pixel(i, height-j-1)));
             }
         }
 
@@ -114,37 +114,42 @@ void Surface_WaveletDecomposition_Plugin::decompose()
             img_height2 = round(img_height/2.f);
 
             //Horizontal decomposition
-            std::vector<NQRgb> tmp_matrix(*m_decomposition->getMatrix());
+            std::vector<int> tmp_coef_matrix(*m_decomposition->getCoefficientMatrix());
+            std::vector<int> tmp_diff_matrix(*m_decomposition->getDifferenceMatrix());
             for(int i = 0; i < img_width; ++i)
             {
                 for(int j = 0; j < img_height; ++j)
                 {
                     if(i%2==0)
                     {
-                        tmp_matrix[i/2+width*j] = m_decomposition->getValue(i, j);
+                        tmp_coef_matrix[i/2+width*j] = m_decomposition->getCoefficient(i, j);
+                        tmp_diff_matrix[i/2+width*j] = m_decomposition->getDifference(i, j);
                     }
                     else
                     {
-                        NQRgb left = m_decomposition->getValue(i-1, j);
-                        NQRgb result;
+                        int left = m_decomposition->getCoefficient(i-1, j);
+                        int result;
                         if(i != img_width-1)
                         {
-                            NQRgb right = m_decomposition->getValue(i+1, j);
-                            result = m_decomposition->getValue(i, j);
-                            result -= (left+right)/2.f;
-                            tmp_matrix[img_width2+round(i/2.f)-1+width*j] = result;
+                            int right = m_decomposition->getCoefficient(i+1, j);
+                            result = m_decomposition->getCoefficient(i, j);
+                            result -= floor((left+right)/2.f + 1/2.f);
+                            tmp_coef_matrix[img_width2+round(i/2.f)-1+width*j] = result;
+                            tmp_diff_matrix[img_width2+round(i/2.f)-1+width*j] = left-right;
                         }
                         else
                         {
-                            result = m_decomposition->getValue(i, j);
+                            result = m_decomposition->getCoefficient(i, j);
                             result -= left;
-                            tmp_matrix[img_width2+round(i/2.f)-1+width*j] = result;
+                            tmp_coef_matrix[img_width2+round(i/2.f)-1+width*j] = result;
+                            tmp_diff_matrix[img_width2+round(i/2.f)-1+width*j] = 0;
                         }
                     }
                 }
             }
 
-            m_decomposition->setMatrix(tmp_matrix);
+            m_decomposition->setCoefficientMatrix(tmp_coef_matrix);
+            m_decomposition->setDifferenceMatrix(tmp_diff_matrix);
 
             //Vertical decomposition
             for(int i = 0; i < img_width; ++i)
@@ -153,41 +158,42 @@ void Surface_WaveletDecomposition_Plugin::decompose()
                 {
                     if(j%2 == 0)
                     {
-                        tmp_matrix[i+width*(j/2)] = m_decomposition->getValue(i, j);
+                        tmp_coef_matrix[i+width*(j/2)] = m_decomposition->getCoefficient(i, j);
+                        tmp_diff_matrix[i+width*(j/2)] = m_decomposition->getDifference(i, j);
                     }
                     else
                     {
-                        NQRgb up = m_decomposition->getValue(i, j-1);
-                        NQRgb result;
+                        int up = m_decomposition->getCoefficient(i, j-1);
+                        int result;
                         if(j != img_height-1)
                         {
-                            NQRgb down = m_decomposition->getValue(i, j+1);
-                            result = m_decomposition->getValue(i, j);
-                            result -= (up+down)/2.f;
-                            tmp_matrix[i+width*(img_height2+round(j/2.f)-1)] = result;
+                            int down = m_decomposition->getCoefficient(i, j+1);
+                            result = m_decomposition->getCoefficient(i, j);
+                            result -= floor((up+down)/2.f + 1/2.f);
+                            tmp_coef_matrix[i+width*(img_height2+round(j/2.f)-1)] = result;
+                            tmp_diff_matrix[i+width*(img_height2+round(j/2.f)-1)] = up-down;
                         }
                         else
                         {
-                            result = m_decomposition->getValue(i, j);
+                            result = m_decomposition->getCoefficient(i, j);
                             result -= up;
-                            tmp_matrix[i+width*(img_height2+round(j/2.f)-1)] = result;
+                            tmp_coef_matrix[i+width*(img_height2+round(j/2.f)-1)] = result;
+                            tmp_diff_matrix[i+width*(img_height2+round(j/2.f)-1)] = 0;
                         }
                     }
                 }
             }
 
-            m_decomposition->setMatrix(tmp_matrix);
+            m_decomposition->setCoefficientMatrix(tmp_coef_matrix);
+            m_decomposition->setDifferenceMatrix(tmp_diff_matrix);
 
             img_width  = img_width2;
             img_height = img_height2;
-            stop = true;
-            if(img_width < 2 || img_height < 2)
+            m_decomposition->getDownDecomposition();
+            if(img_width < 8 || img_height < 8)
             {
                 stop = true;
-            }
-            else
-            {
-                m_decomposition->getDownDecomposition();
+                CGoGNout << m_decomposition->getLevel() << " niveau(x) de décomposition" << CGoGNendl;
             }
         }
     }
@@ -210,8 +216,8 @@ void Surface_WaveletDecomposition_Plugin::saveImages(const QString& name, const 
         {
             for(int j = 0; j < height; ++j)
             {
-                NQRgb color = m_decomposition->getValue(i, j);
-                image.setPixel(i, j, qRgb(qAbs(color.getRed()), qAbs(color.getGreen()), qAbs(color.getBlue())));
+                int color = m_decomposition->getCoefficient(i, j);
+                image.setPixel(i, j, qRgb(qAbs(color), qAbs(color), qAbs(color)));
             }
         }
 
@@ -328,9 +334,9 @@ void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace(const QString&
                 plane_point_position[0] += planeCoordinates[d][0];
                 plane_point_position[1] += planeCoordinates[d][1];
 
-                NQRgb color = m_decomposition->getValue(imageCoordinates[d].getXCoordinate(), imageCoordinates[d].getYCoordinate());
+                int color = m_decomposition->getCoefficient(imageCoordinates[d].getXCoordinate(), imageCoordinates[d].getYCoordinate());
 
-                float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-(qAbs(color.getRed())/255.f))*200;
+                float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-(qAbs(color)/255.f))*200;
 
                 PFP2::VEC3 projected_point_position = plane_center_position;
                 projected_point_position[2] = z_coordinate;
@@ -352,7 +358,7 @@ void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace(const QString&
     }
 }
 
-void Surface_WaveletDecomposition_Plugin::projectNewPointsTo3DSpace(MapHandler<PFP2>* mh_map, const std::vector<Dart>& vertices, const std::vector<NQRgb>& matrix)
+void Surface_WaveletDecomposition_Plugin::projectNewPointsTo3DSpace(MapHandler<PFP2>* mh_map, const std::vector<Dart>& vertices, const std::vector<int>& matrix)
 {
     if(mh_map)
     {
@@ -389,9 +395,9 @@ void Surface_WaveletDecomposition_Plugin::projectNewPointsTo3DSpace(MapHandler<P
             plane_point_position[0] += planeCoordinates[*d][0];
             plane_point_position[1] += planeCoordinates[*d][1];
 
-            NQRgb color = matrix[imageCoordinates[*d].getXCoordinate()+m_decomposition->getWidth()*imageCoordinates[*d].getYCoordinate()];
+            int color = matrix[imageCoordinates[*d].getXCoordinate()+m_decomposition->getWidth()*imageCoordinates[*d].getYCoordinate()];
 
-            float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-(qAbs(color.getRed())/255.f))*200;
+            float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-(qAbs(color)/255.f))*200;
 
             PFP2::VEC3 projected_point_position = plane_center_position;
             projected_point_position[2] = z_coordinate;
@@ -427,15 +433,7 @@ void Surface_WaveletDecomposition_Plugin::triangulateMap(const QString& mapName)
             {
                 if(!marker.isMarked(d))
                 {
-                    Dart phi_11_d;
-                    if(map->vertexDegree(d)<map->vertexDegree(map->phi1(d)))
-                    {
-                        phi_11_d = map->phi_1(map->phi_1(d));
-                    }
-                    else
-                    {
-                        phi_11_d = map->phi<11>(d);
-                    }
+                    Dart phi_11_d = map->phi<11>(d);
                     map->splitFace(d, phi_11_d);
                     marker.markOrbit<FACE>(d);
                     marker.markOrbit<FACE>(phi_11_d);
@@ -476,18 +474,22 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 CGoGNerr << "ImageCoordinates attribute is not valid" << CGoGNendl;
             }
 
-            int width = m_decomposition->getWidth()/pow(2, m_decomposition->getLevel());
-            int height = m_decomposition->getHeight()/pow(2, m_decomposition->getLevel());
+            int image_width = m_decomposition->getWidth();
+            int image_height = m_decomposition->getHeight();
+
+            int width = image_width/pow(2, m_decomposition->getLevel());
+            int height = image_height/pow(2, m_decomposition->getLevel());
 
             DartMarker<PFP2::MAP> marker(*map);
             DartMarker<PFP2::MAP> marker_face(*map);
             DartMarker<PFP2::MAP> marker_horizontal(*map), marker_vertical(*map), marker_diagonal(*map);
+            DartMarker<PFP2::MAP> marker_modified(*map);
 
-            std::vector<Dart> verticesAdded;
-            verticesAdded.reserve(width*height);
+            std::vector<Dart> vertices_added;
+            vertices_added.reserve(width*height);
 
-            std::vector<Dart> verticesModified;
-            verticesModified.reserve(width*height);
+            std::vector<Dart> vertices_modified;
+            vertices_modified.reserve(width*height);
 
             TraversorF<PFP2::MAP> trav_face_map(*map);
             for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = trav_face_map.next())
@@ -516,16 +518,19 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                             {
                                 marker_diagonal.markOrbit<VERTEX>(ddd);
                             }
-                            verticesAdded.push_back(ddd);
-                            verticesModified.push_back(dd);
+                            vertices_added.push_back(ddd);
+                            if(!marker_modified.isMarked(dd))
+                            {
+                                marker_modified.markOrbit<VERTEX>(dd);
+                                vertices_modified.push_back(dd);
+                            }
                             planeCoordinates[ddd] = (planeCoordinates[dd]+planeCoordinates[dd1])/2.f;
                         }
                     }
                 }
             }
 
-//            TraversorV<PFP2::MAP> trav_vert_map(*map);
-            for(std::vector<Dart>::const_iterator d = verticesAdded.begin(); d != verticesAdded.end(); ++d)
+            for(std::vector<Dart>::const_iterator d = vertices_added.begin(); d != vertices_added.end(); ++d)
             {
                 if(marker_horizontal.isMarked(*d))
                 {
@@ -541,7 +546,7 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 }
                 else if(marker_diagonal.isMarked(*d))
                 {
-                    Dart d_1 = map->phi_1(map->phi2(*d)), d1 = map->phi2(*d);
+                    Dart d_1 = map->phi_1(*d), d1 = map->phi1(*d);
                     int min_x = imageCoordinates[d_1].getXCoordinate()>imageCoordinates[d1].getXCoordinate()?imageCoordinates[d1].getXCoordinate():imageCoordinates[d_1].getXCoordinate();
                     int min_y = imageCoordinates[d_1].getYCoordinate()>imageCoordinates[d1].getYCoordinate()?imageCoordinates[d1].getYCoordinate():imageCoordinates[d_1].getYCoordinate();
                     imageCoordinates[*d].setCoordinates((min_x*2+1), (min_y*2+1));
@@ -565,65 +570,98 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 }
             }
 
-            for(std::vector<Dart>::const_iterator d = verticesModified.begin(); d != verticesModified.end(); ++d)
+            Dart lower_left_vertex;
+
+            for(std::vector<Dart>::const_iterator d = vertices_modified.begin(); d != vertices_modified.end(); ++d)
             {
+                if(imageCoordinates[*d].getXCoordinate() == 0 && imageCoordinates[*d].getYCoordinate() == height-1)
+                {
+                    lower_left_vertex = *d;
+                }
                 imageCoordinates[*d].setCoordinates(imageCoordinates[*d].getXCoordinate()*2, imageCoordinates[*d].getYCoordinate()*2);
             }
 
-            std::vector<NQRgb> matrix = std::vector<NQRgb>(*m_decomposition->getMatrix());
+            marker_face.unmarkAll();
+
+            //Adding exterior points
+            Dart d = lower_left_vertex, d1, d2;
+
+            while(!map->isBoundaryMarked<2>(d))
+            {
+                d = map->phi<21>(d);
+            }
+
+            d1 = map->newFace(4);
+            map->sewFaces(d, d1);
+            d1 = map->phi_1(d1);
+            marker_face.markOrbit<FACE>(d1);
+
+            bool stop = false;
+            while(!stop)
+            {
+                d = map->phi<121>(d);   //Next bottom vertex
+                d2 = map->newFace(4);
+                map->sewFaces(d, d2);
+                map->sewFaces(d1, map->phi1(d2));
+                stop = true;
+            }
+
+            std::vector<int> coef_matrix = std::vector<int>(*m_decomposition->getCoefficientMatrix());
+
+            std::vector<int> coef_matrix2 = std::vector<int>(coef_matrix);
 
             for(int i = 0; i < width*2; ++i)
             {
                 for(int j = 0; j < height*2; ++j)
                 {
-                    int index = i+m_decomposition->getWidth()*j;
+                    int index = i+image_width*j;
                     if(j%2 == 1)
                     {
-                        NQRgb up = m_decomposition->getValue(i, round(j/2.f)-1);
-                        NQRgb result = m_decomposition->getValue(i, height+round(j/2.f)-1);
+                        int up = coef_matrix2[i+image_width*(round(j/2.f)-1)];
+                        int result = coef_matrix2[i+image_width*(height+round(j/2.f)-1)];
                         if(j != height*2-1)
                         {
-                            NQRgb down = m_decomposition->getValue(i, round(j/2.f)+1);
-                            result += (up+down)/2.f;
+                            int down = coef_matrix2[i+image_width*(round(j/2.f)+1)];
+                            result += floor((up+down)/2.f + 1/2.f);
                         }
                         else
                         {
                             result += up;
                         }
-                        matrix[index] = result;
+                        coef_matrix[index] = result;
                     }
                     else
                     {
-                        matrix[index] = m_decomposition->getValue(i, j/2);
+                        coef_matrix[index] = coef_matrix2[i+image_width*(j/2)];
                     }
                 }
             }
 
-            std::vector<NQRgb> matrix2 = std::vector<NQRgb>(matrix);
+            coef_matrix2 = std::vector<int>(coef_matrix);
 
             for(int i = 0; i < width*2; ++i)
             {
                 for(int j = 0; j < height*2 ; ++j)
                 {
-                    int index = i+m_decomposition->getWidth()*j;
+                    int index = i+image_width*j;
                     if(i%2 == 1)
                     {
-                        NQRgb left = matrix2[round(i/2.f)-1+m_decomposition->getWidth()*j];
-                        NQRgb result = matrix2[width+round(i/2.f)-1+m_decomposition->getWidth()*j];
+                        int left = coef_matrix2[round(i/2.f)-1+image_width*j];
+                        int result = coef_matrix2[width+round(i/2.f)-1+image_width*j];
                         if(i != width*2-1)
                         {
-                            NQRgb right = matrix2[round(i/2.f)+1+m_decomposition->getWidth()*j];
-                            result += (left+right)/2.f;
+                            int right = coef_matrix2[round(i/2.f)+1+image_width*j];
+                            result += floor((left+right)/2.f + 1/2.f);
                         }
                         else
                         {
                             result += left;
                         }
-                        matrix[index] = result;
+                        coef_matrix[index] = result;
                     }
                     else
                     {
-                        matrix[index] = matrix2[i/2+m_decomposition->getWidth()*j];
+                        coef_matrix[index] = coef_matrix2[i/2+image_width*j];
                     }
                 }
             }
@@ -638,31 +676,31 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
 //                }
 //            }
 
-//            QImage image(width*2, height*2, QImage::Format_RGB32);
+            QImage image(width*2, height*2, QImage::Format_RGB32);
 
-//            for(int i = 0; i < width*2; ++i)
-//            {
-//                for(int j = 0; j < height*2 ; ++j)
-//                {
-//                    NQRgb value = matrix[i+m_decomposition->getWidth()*j];
-//                    image.setPixel(i, j, qRgb(qAbs(value.getRed()), qAbs(value.getBlue()), qAbs(value.getGreen())));
-//                }
-//            }
+            for(int i = 0; i < width*2; ++i)
+            {
+                for(int j = 0; j < height*2 ; ++j)
+                {
+                    int value = coef_matrix[i+m_decomposition->getWidth()*j];
+                    image.setPixel(i, j, qRgb(qAbs(value), qAbs(value), qAbs(value)));
+                }
+            }
 
-//            QString filename("/home/blettere/Projets/Models/Test/");
-//            filename.append(mapName);
-//            filename.append(".png");
+            QString filename("/home/blettere/Projets/Models/Test/");
+            filename.append(mapName);
+            filename.append(".png");
 
-//            if(!image.save(filename))
-//            {
-//                CGoGNerr << "Image '" << filename.toStdString() << "' has not been saved" << CGoGNendl;
-//            }
+            if(!image.save(filename))
+            {
+                CGoGNerr << "Image '" << filename.toStdString() << "' has not been saved" << CGoGNendl;
+            }
 
             mh_map->notifyAttributeModification(planeCoordinates);
             mh_map->notifyAttributeModification(imageCoordinates);
             mh_map->notifyConnectivityModification();
 
-            projectNewPointsTo3DSpace(mh_map, verticesAdded, matrix);
+            projectNewPointsTo3DSpace(mh_map, vertices_added, coef_matrix);
         }
     }
 }

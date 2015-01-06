@@ -99,6 +99,7 @@ public:
         : m_width(width),
           m_height(height),
           m_matrix_decomposition(width*height),
+          m_matrix_difference(width*height),
           m_level(level)
     {
     }
@@ -106,12 +107,19 @@ public:
     ~Decomposition()
     {}
 
-    void setValue(const int x, const int y, const NQRgb& value)
+    void setCoefficient(const int x, const int y, const int value)
     {
-        m_matrix_decomposition[x+m_width*y] = value;
+        if(x >= 0 && y >= 0 && x < m_width && y < m_height)
+        {
+            m_matrix_decomposition[x+m_width*y] = value;
+        }
+        else
+        {
+            CGoGNerr << "setCoefficient : Indices {" << x << ", " << y << "} not in the range [0; {" << m_width-1 << ", " << m_height-1 << "}]" << CGoGNendl;
+        }
     }
 
-    NQRgb getValue(const int x, const int y)
+    int getCoefficient(const int x, const int y)
     {
         if(x >= 0 && y >= 0 && x < m_width && y < m_height)
         {
@@ -119,8 +127,32 @@ public:
         }
         else
         {
-            CGoGNerr << "Get : Indices {" << x << ", " << y << "} not in the range [0; {" << m_width-1 << ", " << m_height-1 << "}]" << CGoGNendl;
-            return NQRgb();
+            CGoGNerr << "getCoefficient : Indices {" << x << ", " << y << "} not in the range [0; {" << m_width-1 << ", " << m_height-1 << "}]" << CGoGNendl;
+            return 0;
+        }
+    }
+
+    void setDifference(const int x, const int y, const int difference)
+    {
+        if(x >= 0 && y >= 0 && x < m_width && y < m_height)
+        {
+            m_matrix_difference[x+m_width*y] = difference;
+        }
+        else
+        {
+            CGoGNerr << "setDifference : Indices {" << x << ", " << y << "} not in the range [0; {" << m_width-1 << ", " << m_height-1 << "}]" << CGoGNendl;
+        }
+    }
+
+    int getDifference(const int x, const int y)
+    {
+        if(x >= 0 && y >= 0 && x < m_width && y < m_height)
+        {
+            return m_matrix_difference[x+m_width*y];
+        }
+        else
+        {
+            CGoGNerr << "getDifference : Indices {" << x << ", " << y << "} not in the range [0; {" << m_width-1 << ", " << m_height-1 << "}]" << CGoGNendl;
         }
     }
 
@@ -133,16 +165,23 @@ public:
     void getUpDecomposition() { --m_level; }
     void getDownDecomposition() { ++m_level; }
 
-    void setMatrix(const std::vector<NQRgb>& matrix)
+    void setCoefficientMatrix(const std::vector<int>& matrix)
     {
-        m_matrix_decomposition = std::vector<NQRgb>(matrix);
+        m_matrix_decomposition = std::vector<int>(matrix);
     }
 
-    std::vector<NQRgb>* getMatrix() { return &m_matrix_decomposition; }
+    void setDifferenceMatrix(const std::vector<int>& matrix)
+    {
+        m_matrix_difference = std::vector<int>(matrix);
+    }
+
+    std::vector<int>* getCoefficientMatrix() { return &m_matrix_decomposition; }
+    std::vector<int>* getDifferenceMatrix() { return &m_matrix_difference; }
 
 private:
     int m_width, m_height;
-    std::vector<NQRgb> m_matrix_decomposition;
+    std::vector<int> m_matrix_decomposition;
+    std::vector<int> m_matrix_difference;
     int m_level;
 };
 
