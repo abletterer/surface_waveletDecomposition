@@ -190,7 +190,7 @@ void Surface_WaveletDecomposition_Plugin::decompose()
             img_width  = img_width2;
             img_height = img_height2;
             m_decomposition->getDownDecomposition();
-            if(img_width < 8 || img_height < 8)
+            if(img_width < 256 || img_height < 256)
             {
                 stop = true;
                 CGoGNout << m_decomposition->getLevel() << " niveau(x) de décomposition" << CGoGNendl;
@@ -583,29 +583,6 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
 
             marker_face.unmarkAll();
 
-            //Adding exterior points
-            Dart d = lower_left_vertex, d1, d2;
-
-            while(!map->isBoundaryMarked<2>(d))
-            {
-                d = map->phi<21>(d);
-            }
-
-            d1 = map->newFace(4);
-            map->sewFaces(d, d1);
-            d1 = map->phi_1(d1);
-            marker_face.markOrbit<FACE>(d1);
-
-            bool stop = false;
-            while(!stop)
-            {
-                d = map->phi<121>(d);   //Next bottom vertex
-                d2 = map->newFace(4);
-                map->sewFaces(d, d2);
-                map->sewFaces(d1, map->phi1(d2));
-                stop = true;
-            }
-
             std::vector<int> coef_matrix = std::vector<int>(*m_decomposition->getCoefficientMatrix());
 
             std::vector<int> coef_matrix2 = std::vector<int>(coef_matrix);
@@ -617,11 +594,11 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                     int index = i+image_width*j;
                     if(j%2 == 1)
                     {
-                        int up = coef_matrix2[i+image_width*(round(j/2.f)-1)];
-                        int result = coef_matrix2[i+image_width*(height+round(j/2.f)-1)];
+                        int up = coef_matrix2[i+image_width*(j/2)];
+                        int result = coef_matrix2[i+image_width*(height+j/2)];
                         if(j != height*2-1)
                         {
-                            int down = coef_matrix2[i+image_width*(round(j/2.f)+1)];
+                            int down = coef_matrix2[i+image_width*(j/2+1)];
                             result += floor((up+down)/2.f + 1/2.f);
                         }
                         else
@@ -646,11 +623,11 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                     int index = i+image_width*j;
                     if(i%2 == 1)
                     {
-                        int left = coef_matrix2[round(i/2.f)-1+image_width*j];
-                        int result = coef_matrix2[width+round(i/2.f)-1+image_width*j];
+                        int left = coef_matrix2[i/2+image_width*j];
+                        int result = coef_matrix2[width+i/2+image_width*j];
                         if(i != width*2-1)
                         {
-                            int right = coef_matrix2[round(i/2.f)+1+image_width*j];
+                            int right = coef_matrix2[i/2+1+image_width*j];
                             result += floor((left+right)/2.f + 1/2.f);
                         }
                         else
