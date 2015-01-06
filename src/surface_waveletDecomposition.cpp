@@ -581,7 +581,74 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 imageCoordinates[*d].setCoordinates(imageCoordinates[*d].getXCoordinate()*2, imageCoordinates[*d].getYCoordinate()*2);
             }
 
-            marker_face.unmarkAll();
+            //Adding exterior points
+            Dart d = lower_left_vertex, d1, d2;
+
+            std::vector<Dart> faces_added;
+            faces_added.reserve(width+height);
+
+            while(!map->isBoundaryEdge(d))
+            {
+                d = map->phi<21>(d);
+            }
+
+            d1 = map->newFace(4);
+            faces_added.push_back(d1);
+            map->sewFaces(d, d1);
+            d1 = map->phi_1(d1);
+            planeCoordinates[d1] = planeCoordinates[map->phi1(d)] + planeCoordinates[map->phi1(d)]-planeCoordinates[map->phi_1(d)];
+            imageCoordinates[d1].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate(), imageCoordinates[map->phi1(d)].getYCoordinate()+1);
+            planeCoordinates[map->phi_1(d1)] = planeCoordinates[d] + planeCoordinates[d]-planeCoordinates[map->phi_1(map->phi2(map->phi_1(d)))];
+            imageCoordinates[map->phi_1(d1)].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate(), imageCoordinates[map->phi1(d)].getYCoordinate()+1);
+
+            bool stop = false;
+            bool up = false;
+            while(!stop)
+            {
+                d = map->phi<12121>(d);   //Next bottom vertex
+                d2 = map->newFace(4);
+                faces_added.push_back(d2);
+                map->sewFaces(d, d2);
+                map->sewFaces(d1, map->phi1(d2));
+                d1 = map->phi_1(d2);
+                planeCoordinates[d1] = planeCoordinates[map->phi1(d)] + planeCoordinates[map->phi1(d)]-planeCoordinates[map->phi_1(d)];
+                if(up)
+                {
+                    imageCoordinates[d1].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate()-1, imageCoordinates[map->phi1(d)].getYCoordinate());
+                }
+                else
+                {
+                    imageCoordinates[d1].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate(), imageCoordinates[map->phi1(d)].getYCoordinate()+1);
+                }
+                if(imageCoordinates[map->phi1(d)].getYCoordinate()==0)
+                {
+                    stop = true;
+                }
+                else if(imageCoordinates[map->phi1(d)].getXCoordinate() == width*2-2 && imageCoordinates[map->phi1(d)].getYCoordinate() == height*2-2)
+                {
+                    d = map->phi1(d);
+                    d2 = map->newFace(4);
+                    faces_added.push_back(d2);
+                    map->sewFaces(d1, d2);
+                    d1 = map->phi_1(d2);
+                    d2 = map->newFace(4);
+                    faces_added.push_back(d2);
+                    map->sewFaces(d1, d2);
+                    planeCoordinates[d1] = planeCoordinates[d] + planeCoordinates[d]-planeCoordinates[map->phi_1(d)];
+                    imageCoordinates[d1].setCoordinates(imageCoordinates[d].getXCoordinate(), imageCoordinates[d].getYCoordinate()+1);
+                    planeCoordinates[map->phi_1(d1)] = planeCoordinates[d] + planeCoordinates[d]-planeCoordinates[map->phi_1(map->phi2(map->phi1(d)))];
+                    imageCoordinates[map->phi_1(d1)].setCoordinates(imageCoordinates[d].getXCoordinate()+1, imageCoordinates[d].getYCoordinate()+1);
+                    map->sewFaces(d, map->phi_1(d2));
+                    d1 = map->phi<11>(d2);
+                    up = true;
+                }
+            }
+
+            for(std::vector<Dart>::const_iterator d = faces_added.begin(); d != faces_added.end(); ++d)
+            {
+                Dart phi_11_d = map->phi<11>(*d);
+                map->splitFace(*d, phi_11_d);
+            }
 
             std::vector<int> coef_matrix = std::vector<int>(*m_decomposition->getCoefficientMatrix());
 
@@ -641,36 +708,6 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                         coef_matrix[index] = coef_matrix2[i/2+image_width*j];
                     }
                 }
-            }
-
-//            marker_face.unmarkAll();
-
-//            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
-//            {
-//                if(position[d]==PFP2::VEC3())
-//                {
-//                    //CGoGNout << imageCoordinates[d].getXCoordinate() << " ; " << imageCoordinates[d].getYCoordinate() << CGoGNendl;
-//                }
-//            }
-
-            QImage image(width*2, height*2, QImage::Format_RGB32);
-
-            for(int i = 0; i < width*2; ++i)
-            {
-                for(int j = 0; j < height*2 ; ++j)
-                {
-                    int value = coef_matrix[i+m_decomposition->getWidth()*j];
-                    image.setPixel(i, j, qRgb(qAbs(value), qAbs(value), qAbs(value)));
-                }
-            }
-
-            QString filename("/home/blettere/Projets/Models/Test/");
-            filename.append(mapName);
-            filename.append(".png");
-
-            if(!image.save(filename))
-            {
-                CGoGNerr << "Image '" << filename.toStdString() << "' has not been saved" << CGoGNendl;
             }
 
             mh_map->notifyAttributeModification(planeCoordinates);
