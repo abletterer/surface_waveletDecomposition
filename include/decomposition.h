@@ -100,7 +100,8 @@ public:
           m_height(height),
           m_matrix_decomposition(width*height),
           m_matrix_difference(width*height),
-          m_level(level)
+          m_level(level),
+          m_max_level(level)
     {
     }
 
@@ -162,6 +163,10 @@ public:
 
     const int getLevel() { return m_level; }
     void setLevel(int level) { m_level = level; }
+
+    const int getMaxLevel() { return m_max_level; }
+    void setMaxLevel(int level) { m_max_level = level; }
+
     void getUpDecomposition() { --m_level; }
     void getDownDecomposition() { ++m_level; }
 
@@ -183,6 +188,7 @@ private:
     std::vector<int> m_matrix_decomposition;
     std::vector<int> m_matrix_difference;
     int m_level;
+    int m_max_level;
 };
 
 }

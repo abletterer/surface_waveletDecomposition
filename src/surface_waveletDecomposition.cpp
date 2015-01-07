@@ -21,11 +21,11 @@ bool Surface_WaveletDecomposition_Plugin::enable()
     connect(m_waveletDecompositionAction, SIGNAL(triggered()), this, SLOT(openWaveletDecompositionDialog()));
 
     connect(m_waveletDecompositionDialog->button_cancel, SIGNAL(clicked()), this, SLOT(closeWaveletDecompositionDialog()));
-    connect(m_waveletDecompositionDialog->button_decompose, SIGNAL(clicked()), this, SLOT(decomposeFromDialog()));
-    connect(m_waveletDecompositionDialog->button_saveImages, SIGNAL(clicked()), this, SLOT(saveImagesFromDialog()));
+    connect(m_waveletDecompositionDialog->button_move_up, SIGNAL(clicked()), this, SLOT(moveUpFromDialog()));
 
     m_decomposition = NULL;
     m_camera = NULL;
+    m_matrix_coef = std::vector<int>();
 
     return true;
 }
@@ -35,8 +35,7 @@ void Surface_WaveletDecomposition_Plugin::disable()
     disconnect(m_waveletDecompositionAction, SIGNAL(triggered()), this, SLOT(openWaveletDecompositionDialog()));
 
     disconnect(m_waveletDecompositionDialog->button_cancel, SIGNAL(clicked()), this, SLOT(closeWaveletDecompositionDialog()));
-    disconnect(m_waveletDecompositionDialog->button_decompose, SIGNAL(clicked()), this, SLOT(decomposeFromDialog()));
-    disconnect(m_waveletDecompositionDialog->button_saveImages, SIGNAL(clicked()), this, SLOT(saveImagesFromDialog()));
+    connect(m_waveletDecompositionDialog->button_move_up, SIGNAL(clicked()), this, SLOT(moveUpFromDialog()));
 
     delete m_decomposition;
 }
@@ -51,17 +50,12 @@ void Surface_WaveletDecomposition_Plugin::closeWaveletDecompositionDialog()
     m_waveletDecompositionDialog->close();
 }
 
-void Surface_WaveletDecomposition_Plugin::decomposeFromDialog()
-{
-    decompose();
-}
-
-void Surface_WaveletDecomposition_Plugin::saveImagesFromDialog()
+void Surface_WaveletDecomposition_Plugin::moveUpFromDialog()
 {
     QList<QListWidgetItem*> currentItems = m_waveletDecompositionDialog->list_maps->selectedItems();
     if(!currentItems.empty())
     {
-        saveImages(currentItems[0]->text());
+        moveUpDecomposition(currentItems[0]->text());
     }
 }
 
@@ -190,7 +184,7 @@ void Surface_WaveletDecomposition_Plugin::decompose()
             img_width  = img_width2;
             img_height = img_height2;
             m_decomposition->getDownDecomposition();
-            if(img_width < 256 || img_height < 256)
+            if(img_width < 4 || img_height < 4)
             {
                 stop = true;
                 CGoGNout << m_decomposition->getLevel() << " niveau(x) de décomposition" << CGoGNendl;
@@ -358,7 +352,7 @@ void Surface_WaveletDecomposition_Plugin::project2DImageTo3DSpace(const QString&
     }
 }
 
-void Surface_WaveletDecomposition_Plugin::projectNewPointsTo3DSpace(MapHandler<PFP2>* mh_map, const std::vector<Dart>& vertices, const std::vector<int>& matrix)
+void Surface_WaveletDecomposition_Plugin::projectNewPointsTo3DSpace(MapHandler<PFP2>* mh_map, const std::vector<Dart>& vertices)
 {
     if(mh_map)
     {
@@ -395,7 +389,7 @@ void Surface_WaveletDecomposition_Plugin::projectNewPointsTo3DSpace(MapHandler<P
             plane_point_position[0] += planeCoordinates[*d][0];
             plane_point_position[1] += planeCoordinates[*d][1];
 
-            int color = matrix[imageCoordinates[*d].getXCoordinate()+m_decomposition->getWidth()*imageCoordinates[*d].getYCoordinate()];
+            int color = m_matrix_coef[imageCoordinates[*d].getXCoordinate()+m_decomposition->getWidth()*imageCoordinates[*d].getYCoordinate()];
 
             float z_coordinate = (m_camera->zFar()-m_camera->zNear())*(1.f-(qAbs(color)/255.f))*200;
 
@@ -486,7 +480,7 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             DartMarker<PFP2::MAP> marker_modified(*map);
 
             std::vector<Dart> vertices_added;
-            vertices_added.reserve(width*height);
+            vertices_added.reserve(width*height*4);
 
             std::vector<Dart> vertices_modified;
             vertices_modified.reserve(width*height);
@@ -551,7 +545,10 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                     int min_y = imageCoordinates[d_1].getYCoordinate()>imageCoordinates[d1].getYCoordinate()?imageCoordinates[d1].getYCoordinate():imageCoordinates[d_1].getYCoordinate();
                     imageCoordinates[*d].setCoordinates((min_x*2+1), (min_y*2+1));
                 }
+                CGoGNout << imageCoordinates[*d].getXCoordinate() << " | " << imageCoordinates[*d].getYCoordinate() << CGoGNendl;
             }
+
+            CGoGNout << "-----" << CGoGNendl;
 
             for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = trav_face_map.next())
             {
@@ -570,89 +567,110 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 }
             }
 
-            Dart lower_left_vertex;
+//            Dart lower_left_vertex;
 
             for(std::vector<Dart>::const_iterator d = vertices_modified.begin(); d != vertices_modified.end(); ++d)
             {
-                if(imageCoordinates[*d].getXCoordinate() == 0 && imageCoordinates[*d].getYCoordinate() == height-1)
-                {
-                    lower_left_vertex = *d;
-                }
+//                if(imageCoordinates[*d].getXCoordinate() == 0 && imageCoordinates[*d].getYCoordinate() == height-1)
+//                {
+//                    lower_left_vertex = *d;
+//                }
                 imageCoordinates[*d].setCoordinates(imageCoordinates[*d].getXCoordinate()*2, imageCoordinates[*d].getYCoordinate()*2);
             }
 
             //Adding exterior points
-            Dart d = lower_left_vertex, d1, d2;
+//            Dart d = lower_left_vertex, d1, d2;
 
-            std::vector<Dart> faces_added;
-            faces_added.reserve(width+height);
+//            std::vector<Dart> faces_added;
+//            faces_added.reserve(width+height);
 
-            while(!map->isBoundaryEdge(d))
+//            while(!map->isBoundaryEdge(d))
+//            {
+//                d = map->phi<21>(d);
+//            }
+
+//            d1 = map->newFace(4);
+//            map->sewFaces(d, d1);
+//            faces_added.push_back(d1);
+//            d1 = map->phi_1(d1);
+
+//            planeCoordinates[d1] = planeCoordinates[map->phi1(d)] + planeCoordinates[map->phi1(d)]-planeCoordinates[map->phi_1(d)];
+//            imageCoordinates[d1].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate(), imageCoordinates[map->phi1(d)].getYCoordinate()+1);
+//            vertices_added.push_back(d1);
+
+//            planeCoordinates[map->phi_1(d1)] = planeCoordinates[d] + planeCoordinates[d]-planeCoordinates[map->phi_1(map->phi2(map->phi_1(d)))];
+//            imageCoordinates[map->phi_1(d1)].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate(), imageCoordinates[map->phi1(d)].getYCoordinate()+1);
+//            vertices_added.push_back(map->phi_1(d1));
+
+//            bool stop = false, up = false;
+//            while(!stop)
+//            {
+//                d = map->phi<12121>(d);
+
+//                d2 = map->newFace(4);
+//                map->sewFaces(d, d2);
+//                map->sewFaces(d1, map->phi1(d2));
+//                faces_added.push_back(d2);
+//                d1 = map->phi_1(d2);
+
+//                planeCoordinates[d1] = planeCoordinates[map->phi1(d)] + planeCoordinates[map->phi1(d)]-planeCoordinates[map->phi_1(d)];
+//                if(up)
+//                {
+//                    imageCoordinates[d1].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate()+1, imageCoordinates[map->phi1(d)].getYCoordinate());
+//                }
+//                else
+//                {
+//                    imageCoordinates[d1].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate(), imageCoordinates[map->phi1(d)].getYCoordinate()+1);
+//                }
+//                vertices_added.push_back(d1);
+
+//                if(imageCoordinates[map->phi1(d)].getYCoordinate()==0)
+//                {
+//                    stop = true;
+//                }
+//                else if(!up && imageCoordinates[map->phi1(d)].getXCoordinate() == width*2-2 && imageCoordinates[map->phi1(d)].getYCoordinate() == height*2-2)
+//                {
+//                    d = map->phi1(d);
+
+//                    d2 = map->newFace(4);
+//                    map->sewFaces(d1, d2);
+//                    faces_added.push_back(d2);
+//                    d1 = map->phi_1(d2);
+
+//                    d2 = map->newFace(4);
+//                    map->sewFaces(d1, d2);
+//                    map->sewFaces(d, map->phi_1(d2));
+//                    faces_added.push_back(d2);
+
+//                    planeCoordinates[d1] = planeCoordinates[d] + planeCoordinates[d]-planeCoordinates[map->phi_1(d)];
+//                    imageCoordinates[d1].setCoordinates(imageCoordinates[d].getXCoordinate()+1, imageCoordinates[d].getYCoordinate());
+//                    vertices_added.push_back(d1);
+
+//                    planeCoordinates[map->phi_1(d1)] = planeCoordinates[d] + planeCoordinates[d]-planeCoordinates[map->phi_1(map->phi2(map->phi1(d)))];
+//                    imageCoordinates[map->phi_1(d1)].setCoordinates(imageCoordinates[d].getXCoordinate()+1, imageCoordinates[d].getYCoordinate()+1);
+//                    vertices_added.push_back(map->phi_1(d1));
+
+//                    d1 = map->phi<11>(d2);
+
+//                    planeCoordinates[d1] = planeCoordinates[map->phi1(d1)] + planeCoordinates[map->phi1(d1)]-planeCoordinates[map->phi_1(map->phi2(map->phi1(d)))];
+//                    imageCoordinates[d1].setCoordinates(imageCoordinates[map->phi1(d1)].getXCoordinate()+1, imageCoordinates[d].getYCoordinate());
+//                    vertices_added.push_back(d1);
+//                    up = true;
+//                }
+//            }
+
+//            for(std::vector<Dart>::const_iterator d = faces_added.begin(); d != faces_added.end(); ++d)
+//            {
+//                Dart phi_11_d = map->phi<11>(*d);
+//                map->splitFace(*d, phi_11_d);
+//            }
+
+            if(m_matrix_coef.empty())
             {
-                d = map->phi<21>(d);
+                m_matrix_coef = std::vector<int>(*m_decomposition->getCoefficientMatrix());
             }
 
-            d1 = map->newFace(4);
-            faces_added.push_back(d1);
-            map->sewFaces(d, d1);
-            d1 = map->phi_1(d1);
-            planeCoordinates[d1] = planeCoordinates[map->phi1(d)] + planeCoordinates[map->phi1(d)]-planeCoordinates[map->phi_1(d)];
-            imageCoordinates[d1].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate(), imageCoordinates[map->phi1(d)].getYCoordinate()+1);
-            planeCoordinates[map->phi_1(d1)] = planeCoordinates[d] + planeCoordinates[d]-planeCoordinates[map->phi_1(map->phi2(map->phi_1(d)))];
-            imageCoordinates[map->phi_1(d1)].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate(), imageCoordinates[map->phi1(d)].getYCoordinate()+1);
-
-            bool stop = false;
-            bool up = false;
-            while(!stop)
-            {
-                d = map->phi<12121>(d);   //Next bottom vertex
-                d2 = map->newFace(4);
-                faces_added.push_back(d2);
-                map->sewFaces(d, d2);
-                map->sewFaces(d1, map->phi1(d2));
-                d1 = map->phi_1(d2);
-                planeCoordinates[d1] = planeCoordinates[map->phi1(d)] + planeCoordinates[map->phi1(d)]-planeCoordinates[map->phi_1(d)];
-                if(up)
-                {
-                    imageCoordinates[d1].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate()-1, imageCoordinates[map->phi1(d)].getYCoordinate());
-                }
-                else
-                {
-                    imageCoordinates[d1].setCoordinates(imageCoordinates[map->phi1(d)].getXCoordinate(), imageCoordinates[map->phi1(d)].getYCoordinate()+1);
-                }
-                if(imageCoordinates[map->phi1(d)].getYCoordinate()==0)
-                {
-                    stop = true;
-                }
-                else if(imageCoordinates[map->phi1(d)].getXCoordinate() == width*2-2 && imageCoordinates[map->phi1(d)].getYCoordinate() == height*2-2)
-                {
-                    d = map->phi1(d);
-                    d2 = map->newFace(4);
-                    faces_added.push_back(d2);
-                    map->sewFaces(d1, d2);
-                    d1 = map->phi_1(d2);
-                    d2 = map->newFace(4);
-                    faces_added.push_back(d2);
-                    map->sewFaces(d1, d2);
-                    planeCoordinates[d1] = planeCoordinates[d] + planeCoordinates[d]-planeCoordinates[map->phi_1(d)];
-                    imageCoordinates[d1].setCoordinates(imageCoordinates[d].getXCoordinate(), imageCoordinates[d].getYCoordinate()+1);
-                    planeCoordinates[map->phi_1(d1)] = planeCoordinates[d] + planeCoordinates[d]-planeCoordinates[map->phi_1(map->phi2(map->phi1(d)))];
-                    imageCoordinates[map->phi_1(d1)].setCoordinates(imageCoordinates[d].getXCoordinate()+1, imageCoordinates[d].getYCoordinate()+1);
-                    map->sewFaces(d, map->phi_1(d2));
-                    d1 = map->phi<11>(d2);
-                    up = true;
-                }
-            }
-
-            for(std::vector<Dart>::const_iterator d = faces_added.begin(); d != faces_added.end(); ++d)
-            {
-                Dart phi_11_d = map->phi<11>(*d);
-                map->splitFace(*d, phi_11_d);
-            }
-
-            std::vector<int> coef_matrix = std::vector<int>(*m_decomposition->getCoefficientMatrix());
-
-            std::vector<int> coef_matrix2 = std::vector<int>(coef_matrix);
+            std::vector<int> coef_matrix2 = std::vector<int>(m_matrix_coef);
 
             for(int i = 0; i < width*2; ++i)
             {
@@ -672,16 +690,16 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                         {
                             result += up;
                         }
-                        coef_matrix[index] = result;
+                        m_matrix_coef[index] = result;
                     }
                     else
                     {
-                        coef_matrix[index] = coef_matrix2[i+image_width*(j/2)];
+                        m_matrix_coef[index] = coef_matrix2[i+image_width*(j/2)];
                     }
                 }
             }
 
-            coef_matrix2 = std::vector<int>(coef_matrix);
+            coef_matrix2 = std::vector<int>(m_matrix_coef);
 
             for(int i = 0; i < width*2; ++i)
             {
@@ -701,20 +719,22 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                         {
                             result += left;
                         }
-                        coef_matrix[index] = result;
+                        m_matrix_coef[index] = result;
                     }
                     else
                     {
-                        coef_matrix[index] = coef_matrix2[i/2+image_width*j];
+                        m_matrix_coef[index] = coef_matrix2[i/2+image_width*j];
                     }
                 }
             }
+
+            m_decomposition->getUpDecomposition();
 
             mh_map->notifyAttributeModification(planeCoordinates);
             mh_map->notifyAttributeModification(imageCoordinates);
             mh_map->notifyConnectivityModification();
 
-            projectNewPointsTo3DSpace(mh_map, vertices_added, coef_matrix);
+            projectNewPointsTo3DSpace(mh_map, vertices_added);
         }
     }
 }
