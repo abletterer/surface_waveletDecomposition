@@ -22,6 +22,7 @@ bool Surface_WaveletDecomposition_Plugin::enable()
 
     connect(m_waveletDecompositionDialog->button_cancel, SIGNAL(clicked()), this, SLOT(closeWaveletDecompositionDialog()));
     connect(m_waveletDecompositionDialog->button_move_up, SIGNAL(clicked()), this, SLOT(moveUpFromDialog()));
+    connect(m_waveletDecompositionDialog->button_move_down, SIGNAL(clicked()), this, SLOT(moveDownFromDialog()));
 
     m_decomposition = NULL;
     m_camera = NULL;
@@ -35,7 +36,8 @@ void Surface_WaveletDecomposition_Plugin::disable()
     disconnect(m_waveletDecompositionAction, SIGNAL(triggered()), this, SLOT(openWaveletDecompositionDialog()));
 
     disconnect(m_waveletDecompositionDialog->button_cancel, SIGNAL(clicked()), this, SLOT(closeWaveletDecompositionDialog()));
-    connect(m_waveletDecompositionDialog->button_move_up, SIGNAL(clicked()), this, SLOT(moveUpFromDialog()));
+    disconnect(m_waveletDecompositionDialog->button_move_up, SIGNAL(clicked()), this, SLOT(moveUpFromDialog()));
+    disconnect(m_waveletDecompositionDialog->button_move_down, SIGNAL(clicked()), this, SLOT(moveDownFromDialog()));
 
     delete m_decomposition;
 }
@@ -56,6 +58,15 @@ void Surface_WaveletDecomposition_Plugin::moveUpFromDialog()
     if(!currentItems.empty())
     {
         moveUpDecomposition(currentItems[0]->text());
+    }
+}
+
+void Surface_WaveletDecomposition_Plugin::moveDownFromDialog()
+{
+    QList<QListWidgetItem*> currentItems = m_waveletDecompositionDialog->list_maps->selectedItems();
+    if(!currentItems.empty())
+    {
+        moveDownDecomposition(currentItems[0]->text());
     }
 }
 
@@ -184,10 +195,11 @@ void Surface_WaveletDecomposition_Plugin::decompose()
             img_width  = img_width2;
             img_height = img_height2;
             m_decomposition->getDownDecomposition();
-            if(img_width < 4 || img_height < 4)
+            if(img_width < 32 || img_height < 32)
             {
                 stop = true;
-                CGoGNout << m_decomposition->getLevel() << " niveau(x) de décomposition" << CGoGNendl;
+                m_decomposition->setMaxLevel(m_decomposition->getLevel());
+                CGoGNout << m_decomposition->getLevel()+1 << " niveau(x) de décomposition" << CGoGNendl;
             }
         }
     }
@@ -449,12 +461,6 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
         if(mh_map)
         {
             PFP2::MAP* map = mh_map->getMap();
-
-            VertexAttribute<PFP2::VEC3, PFP2::MAP> position = mh_map->getAttribute<PFP2::VEC3, VERTEX>("position");
-            if(!position.isValid())
-            {
-                CGoGNerr << "position attribute is not valid" << CGoGNendl;
-            }
 
             VertexAttribute<PFP2::VEC3, PFP2::MAP> planeCoordinates = mh_map->getAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
             if(!planeCoordinates.isValid())
@@ -741,9 +747,38 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
 
 void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& mapName)
 {
-    if(m_decomposition && (m_decomposition->getWidth()>=2 && m_decomposition->getHeight()>=2))
+    if(m_decomposition && m_decomposition->getLevel() <= m_decomposition->getMaxLevel())
     {
+        MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(m_schnapps->getMap(mapName));
+        if(mh_map)
+        {
+            PFP2::MAP* map = mh_map->getMap();
 
+            VertexAttribute<PFP2::VEC3, PFP2::MAP> planeCoordinates = mh_map->getAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
+            if(!planeCoordinates.isValid())
+            {
+                CGoGNerr << "PlaneCoordinates attribute is not valid" << CGoGNendl;
+            }
+
+            VertexAttribute<ImageCoordinates, PFP2::MAP> imageCoordinates = mh_map->getAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
+            if(!imageCoordinates.isValid())
+            {
+                CGoGNerr << "ImageCoordinates attribute is not valid" << CGoGNendl;
+            }
+
+            Dart starting_vertex;
+            bool stop = false;
+
+            TraversorV<PFP2::MAP> trav_vert_map(*map);
+            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end() && !stop; d = trav_vert_map.next())
+            {
+                if(imageCoordinates[d].getXCoordinate()==0 && imageCoordinates[d].getYCoordinate()==0)
+                {
+                    starting_vertex = d;
+                    stop = true;
+                }
+            }
+        }
     }
 }
 

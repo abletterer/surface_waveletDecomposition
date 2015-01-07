@@ -53,6 +53,7 @@ private slots:
     void closeWaveletDecompositionDialog();
 
     void moveUpFromDialog();
+    void moveDownFromDialog();
 
 public slots:
 
