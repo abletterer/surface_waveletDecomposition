@@ -39,7 +39,14 @@ void Surface_WaveletDecomposition_Plugin::disable()
     disconnect(m_waveletDecompositionDialog->button_move_up, SIGNAL(clicked()), this, SLOT(moveUpFromDialog()));
     disconnect(m_waveletDecompositionDialog->button_move_down, SIGNAL(clicked()), this, SLOT(moveDownFromDialog()));
 
-    delete m_decomposition;
+    if(m_decomposition)
+    {
+        delete m_decomposition;
+    }
+    if(m_camera)
+    {
+        delete m_camera;
+    }
 }
 
 void Surface_WaveletDecomposition_Plugin::openWaveletDecompositionDialog()
@@ -194,8 +201,8 @@ void Surface_WaveletDecomposition_Plugin::decompose()
 
             img_width  = img_width2;
             img_height = img_height2;
-            m_decomposition->getDownDecomposition();
-            if(img_width < 32 || img_height < 32)
+            m_decomposition->moveDownDecomposition();
+            if(img_width < 8 || img_height < 8)
             {
                 stop = true;
                 m_decomposition->setMaxLevel(m_decomposition->getLevel());
@@ -551,10 +558,7 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                     int min_y = imageCoordinates[d_1].getYCoordinate()>imageCoordinates[d1].getYCoordinate()?imageCoordinates[d1].getYCoordinate():imageCoordinates[d_1].getYCoordinate();
                     imageCoordinates[*d].setCoordinates((min_x*2+1), (min_y*2+1));
                 }
-                CGoGNout << imageCoordinates[*d].getXCoordinate() << " | " << imageCoordinates[*d].getYCoordinate() << CGoGNendl;
             }
-
-            CGoGNout << "-----" << CGoGNendl;
 
             for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = trav_face_map.next())
             {
@@ -734,20 +738,20 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 }
             }
 
-            m_decomposition->getUpDecomposition();
+            m_decomposition->moveUpDecomposition();
 
             mh_map->notifyAttributeModification(planeCoordinates);
             mh_map->notifyAttributeModification(imageCoordinates);
             mh_map->notifyConnectivityModification();
 
-            projectNewPointsTo3DSpace(mh_map, vertices_added);
+//            projectNewPointsTo3DSpace(mh_map, vertices_added);
         }
     }
 }
 
 void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& mapName)
 {
-    if(m_decomposition && m_decomposition->getLevel() <= m_decomposition->getMaxLevel())
+    if(m_decomposition && m_decomposition->getLevel() < m_decomposition->getMaxLevel())
     {
         MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(m_schnapps->getMap(mapName));
         if(mh_map)
@@ -766,6 +770,12 @@ void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
                 CGoGNerr << "ImageCoordinates attribute is not valid" << CGoGNendl;
             }
 
+            int image_width = m_decomposition->getWidth();
+            int image_height = m_decomposition->getHeight();
+
+            int width = image_width/pow(2, m_decomposition->getLevel());
+            int height = image_height/pow(2, m_decomposition->getLevel());
+
             Dart starting_vertex;
             bool stop = false;
 
@@ -778,6 +788,108 @@ void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
                     stop = true;
                 }
             }
+
+            Dart d = starting_vertex;
+
+            while(imageCoordinates[d].getYCoordinate() != height-2)
+            {
+                while(!map->isBoundaryMarked<2>(d))
+                {
+                    Dart dd = map->deleteVertex(map->phi_1(map->phi<12>(d)));
+                    map->mergeFaces(map->phi<111>(dd));
+                    map->mergeFaces(dd);
+                    d = map->phi<111112>(d);
+                }
+                d = map->phi2(d);
+                while(!map->isBoundaryMarked<2>(d))
+                {
+                    d = map->phi<1112>(d);
+                }
+                d = map->phi<21121>(d);
+            }
+
+            DartMarker<PFP2::MAP> marker_edge(*map);
+
+            for(Dart d = trav_vert_map.begin(); d != trav_vert_map.end(); d = trav_vert_map.next())
+            {
+                if(!marker_edge.isMarked(d))
+                {
+                    if(!map->uncutEdge(d))
+                    {
+                        d = map->phi_1(d);
+                        map->uncutEdge(d);
+                    }
+                    marker_edge.markOrbit<EDGE>(d);
+                }
+            }
+
+            std::vector<int> coef_matrix2 = std::vector<int>(m_matrix_coef);
+
+            for(int i = 0; i < width; ++i)
+            {
+                for(int j = 0; j < height; ++j)
+                {
+                    int index = i+image_width*j;
+                    if(j%2 == 1)
+                    {
+                        int up = coef_matrix2[i+image_width*(j/2)];
+                        int result = coef_matrix2[i+image_width*(height+j/2)];
+                        if(j != height*2-1)
+                        {
+                            int down = coef_matrix2[i+image_width*(j/2+1)];
+                            result -= floor((up+down)/2.f + 1/2.f);
+                        }
+                        else
+                        {
+                            result -= up;
+                        }
+                        m_matrix_coef[index] = result;
+                    }
+                    else
+                    {
+                        m_matrix_coef[index] = coef_matrix2[i+image_width*(j/2)];
+                    }
+                }
+            }
+
+            coef_matrix2 = std::vector<int>(m_matrix_coef);
+
+            for(int i = 0; i < width; ++i)
+            {
+                for(int j = 0; j < height ; ++j)
+                {
+                    int index = i+image_width*j;
+                    if(i%2 == 1)
+                    {
+                        int left = coef_matrix2[i/2+image_width*j];
+                        int result = coef_matrix2[width+i/2+image_width*j];
+                        if(i != width*2-1)
+                        {
+                            int right = coef_matrix2[i/2+1+image_width*j];
+                            result += floor((left+right)/2.f + 1/2.f);
+                        }
+                        else
+                        {
+                            result += left;
+                        }
+                        m_matrix_coef[index] = result;
+                    }
+                    else
+                    {
+                        m_matrix_coef[index] = coef_matrix2[i/2+image_width*j];
+                    }
+                }
+            }
+
+            //triangulateMap(mapName);
+
+            m_decomposition->moveDownDecomposition();
+
+            mh_map->notifyConnectivityModification();
+            mh_map->notifyAttributeModification(planeCoordinates);
+            mh_map->notifyAttributeModification(imageCoordinates);
+            m_schnapps->getSelectedView()->updateGL();
+
         }
     }
 }

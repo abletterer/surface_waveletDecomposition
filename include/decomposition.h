@@ -167,8 +167,8 @@ public:
     const int getMaxLevel() { return m_max_level; }
     void setMaxLevel(int level) { m_max_level = level; }
 
-    void getUpDecomposition() { --m_level; }
-    void getDownDecomposition() { ++m_level; }
+    void moveUpDecomposition() { --m_level; }
+    void moveDownDecomposition() { ++m_level; }
 
     void setCoefficientMatrix(const std::vector<int>& matrix)
     {
