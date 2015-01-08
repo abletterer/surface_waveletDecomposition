@@ -154,6 +154,7 @@ public:
         else
         {
             CGoGNerr << "getDifference : Indices {" << x << ", " << y << "} not in the range [0; {" << m_width-1 << ", " << m_height-1 << "}]" << CGoGNendl;
+            return 0;
         }
     }
 

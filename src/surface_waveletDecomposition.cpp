@@ -146,15 +146,15 @@ void Surface_WaveletDecomposition_Plugin::decompose()
                             int right = m_decomposition->getCoefficient(i+1, j);
                             result = m_decomposition->getCoefficient(i, j);
                             result -= floor((left+right)/2.f + 1/2.f);
-                            tmp_coef_matrix[img_width2+round(i/2.f)-1+width*j] = result;
-                            tmp_diff_matrix[img_width2+round(i/2.f)-1+width*j] = left-right;
+                            tmp_coef_matrix[img_width2+i/2+width*j] = result;
+                            tmp_diff_matrix[img_width2+i/2+width*j] = left-right;
                         }
                         else
                         {
                             result = m_decomposition->getCoefficient(i, j);
                             result -= left;
-                            tmp_coef_matrix[img_width2+round(i/2.f)-1+width*j] = result;
-                            tmp_diff_matrix[img_width2+round(i/2.f)-1+width*j] = 0;
+                            tmp_coef_matrix[img_width2+i/2+width*j] = result;
+                            tmp_diff_matrix[img_width2+i/2+width*j] = 0;
                         }
                     }
                 }
@@ -182,15 +182,15 @@ void Surface_WaveletDecomposition_Plugin::decompose()
                             int down = m_decomposition->getCoefficient(i, j+1);
                             result = m_decomposition->getCoefficient(i, j);
                             result -= floor((up+down)/2.f + 1/2.f);
-                            tmp_coef_matrix[i+width*(img_height2+round(j/2.f)-1)] = result;
-                            tmp_diff_matrix[i+width*(img_height2+round(j/2.f)-1)] = up-down;
+                            tmp_coef_matrix[i+width*(img_height2+j/2)] = result;
+                            tmp_diff_matrix[i+width*(img_height2+j/2)] = up-down;
                         }
                         else
                         {
                             result = m_decomposition->getCoefficient(i, j);
                             result -= up;
-                            tmp_coef_matrix[i+width*(img_height2+round(j/2.f)-1)] = result;
-                            tmp_diff_matrix[i+width*(img_height2+round(j/2.f)-1)] = 0;
+                            tmp_coef_matrix[i+width*(img_height2+j/2)] = result;
+                            tmp_diff_matrix[i+width*(img_height2+j/2)] = 0;
                         }
                     }
                 }
@@ -481,11 +481,11 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                 CGoGNerr << "ImageCoordinates attribute is not valid" << CGoGNendl;
             }
 
-            int image_width = m_decomposition->getWidth();
-            int image_height = m_decomposition->getHeight();
+            int img_width = m_decomposition->getWidth();
+            int img_height = m_decomposition->getHeight();
 
-            int width = image_width/pow(2, m_decomposition->getLevel());
-            int height = image_height/pow(2, m_decomposition->getLevel());
+            int width = img_width/pow(2, m_decomposition->getLevel());
+            int height = img_height/pow(2, m_decomposition->getLevel());
 
             DartMarker<PFP2::MAP> marker(*map);
             DartMarker<PFP2::MAP> marker_face(*map);
@@ -686,14 +686,14 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             {
                 for(int j = 0; j < height*2; ++j)
                 {
-                    int index = i+image_width*j;
+                    int index = i+img_width*j;
                     if(j%2 == 1)
                     {
-                        int up = coef_matrix2[i+image_width*(j/2)];
-                        int result = coef_matrix2[i+image_width*(height+j/2)];
+                        int up = coef_matrix2[i+img_width*(j/2)];
+                        int result = coef_matrix2[i+img_width*(height+j/2)];
                         if(j != height*2-1)
                         {
-                            int down = coef_matrix2[i+image_width*(j/2+1)];
+                            int down = coef_matrix2[i+img_width*(j/2+1)];
                             result += floor((up+down)/2.f + 1/2.f);
                         }
                         else
@@ -704,7 +704,7 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                     }
                     else
                     {
-                        m_matrix_coef[index] = coef_matrix2[i+image_width*(j/2)];
+                        m_matrix_coef[index] = coef_matrix2[i+img_width*(j/2)];
                     }
                 }
             }
@@ -715,14 +715,14 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             {
                 for(int j = 0; j < height*2 ; ++j)
                 {
-                    int index = i+image_width*j;
+                    int index = i+img_width*j;
                     if(i%2 == 1)
                     {
-                        int left = coef_matrix2[i/2+image_width*j];
-                        int result = coef_matrix2[width+i/2+image_width*j];
+                        int left = coef_matrix2[i/2+img_width*j];
+                        int result = coef_matrix2[width+i/2+img_width*j];
                         if(i != width*2-1)
                         {
-                            int right = coef_matrix2[i/2+1+image_width*j];
+                            int right = coef_matrix2[i/2+1+img_width*j];
                             result += floor((left+right)/2.f + 1/2.f);
                         }
                         else
@@ -733,9 +733,29 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
                     }
                     else
                     {
-                        m_matrix_coef[index] = coef_matrix2[i/2+image_width*j];
+                        m_matrix_coef[index] = coef_matrix2[i/2+img_width*j];
                     }
                 }
+            }
+
+            QImage image(width*2, height*2, QImage::Format_RGB32);
+
+            for(int i = 0; i < width*2; ++i)
+            {
+                for(int j = 0; j < height*2 ; ++j)
+                {
+                    int value = m_matrix_coef[i+m_decomposition->getWidth()*j];
+                    image.setPixel(i, j, qRgb(qAbs(value), qAbs(value), qAbs(value)));
+                }
+            }
+
+            QString filename("/home/blettere/Projets/Models/Test/");
+            filename.append(mapName);
+            filename.append(".png");
+
+            if(!image.save(filename))
+            {
+                CGoGNerr << "Image '" << filename.toStdString() << "' has not been saved" << CGoGNendl;
             }
 
             m_decomposition->moveUpDecomposition();
@@ -744,7 +764,7 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             mh_map->notifyAttributeModification(imageCoordinates);
             mh_map->notifyConnectivityModification();
 
-//            projectNewPointsTo3DSpace(mh_map, vertices_added);
+            projectNewPointsTo3DSpace(mh_map, vertices_added);
         }
     }
 }
@@ -770,11 +790,11 @@ void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
                 CGoGNerr << "ImageCoordinates attribute is not valid" << CGoGNendl;
             }
 
-            int image_width = m_decomposition->getWidth();
-            int image_height = m_decomposition->getHeight();
+            int img_width = m_decomposition->getWidth();
+            int img_height = m_decomposition->getHeight();
 
-            int width = image_width/pow(2, m_decomposition->getLevel());
-            int height = image_height/pow(2, m_decomposition->getLevel());
+            int width = img_width/pow(2, m_decomposition->getLevel());
+            int height = img_height/pow(2, m_decomposition->getLevel());
 
             Dart starting_vertex;
             bool stop = false;
@@ -829,54 +849,56 @@ void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
             {
                 for(int j = 0; j < height; ++j)
                 {
-                    int index = i+image_width*j;
-                    if(j%2 == 1)
+                    if(i%2==0)
                     {
-                        int up = coef_matrix2[i+image_width*(j/2)];
-                        int result = coef_matrix2[i+image_width*(height+j/2)];
-                        if(j != height*2-1)
-                        {
-                            int down = coef_matrix2[i+image_width*(j/2+1)];
-                            result -= floor((up+down)/2.f + 1/2.f);
-                        }
-                        else
-                        {
-                            result -= up;
-                        }
-                        m_matrix_coef[index] = result;
+                        m_matrix_coef[i/2+img_width*j] = coef_matrix2[i+img_width*j];
                     }
                     else
                     {
-                        m_matrix_coef[index] = coef_matrix2[i+image_width*(j/2)];
+                        int left = coef_matrix2[i-1+img_width*j];
+                        int result;
+                        if(i != width-1)
+                        {
+                            int right = coef_matrix2[i+1+img_width*j];
+                            result = coef_matrix2[i+img_width*j];
+                            result -= floor((left+right)/2.f + 1/2.f);
+                            m_matrix_coef[width/2+i/2+img_width*j] = result;
+                        }
+                        else
+                        {
+                            result = coef_matrix2[i+img_width*j];
+                            result -= left;
+                            m_matrix_coef[width/2+i/2+img_width*j] = result;
+                        }
                     }
                 }
             }
 
-            coef_matrix2 = std::vector<int>(m_matrix_coef);
-
             for(int i = 0; i < width; ++i)
             {
-                for(int j = 0; j < height ; ++j)
+                for(int j = 0; j < height; ++j)
                 {
-                    int index = i+image_width*j;
-                    if(i%2 == 1)
+                    if(j%2==0)
                     {
-                        int left = coef_matrix2[i/2+image_width*j];
-                        int result = coef_matrix2[width+i/2+image_width*j];
-                        if(i != width*2-1)
-                        {
-                            int right = coef_matrix2[i/2+1+image_width*j];
-                            result += floor((left+right)/2.f + 1/2.f);
-                        }
-                        else
-                        {
-                            result += left;
-                        }
-                        m_matrix_coef[index] = result;
+                        m_matrix_coef[i+img_width*(j/2)] = coef_matrix2[i+img_width*j];
                     }
                     else
                     {
-                        m_matrix_coef[index] = coef_matrix2[i/2+image_width*j];
+                        int left = coef_matrix2[i+img_width*(j-1)];
+                        int result;
+                        if(j != height-1)
+                        {
+                            int right = coef_matrix2[i+img_width*(j+1)];
+                            result = coef_matrix2[i+img_width*j];
+                            result -= floor((left+right)/2.f + 1/2.f);
+                            m_matrix_coef[i+img_width*(height/2+j/2)] = result;
+                        }
+                        else
+                        {
+                            result = coef_matrix2[i+img_width*j];
+                            result -= left;
+                            m_matrix_coef[i+img_width*(height/2+j/2)] = result;
+                        }
                     }
                 }
             }
