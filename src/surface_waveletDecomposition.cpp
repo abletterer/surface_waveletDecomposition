@@ -20,13 +20,14 @@ bool Surface_WaveletDecomposition_Plugin::enable()
 
     connect(m_waveletDecompositionAction, SIGNAL(triggered()), this, SLOT(openWaveletDecompositionDialog()));
 
-    connect(m_waveletDecompositionDialog->button_cancel, SIGNAL(clicked()), this, SLOT(closeWaveletDecompositionDialog()));
+    connect(m_waveletDecompositionDialog->button_delete_background, SIGNAL(clicked()), this, SLOT(deleteBackgroundFromDialog()));
     connect(m_waveletDecompositionDialog->button_move_up, SIGNAL(clicked()), this, SLOT(moveUpFromDialog()));
     connect(m_waveletDecompositionDialog->button_move_down, SIGNAL(clicked()), this, SLOT(moveDownFromDialog()));
 
     m_decomposition = NULL;
     m_camera = NULL;
     m_matrix_coef = std::vector<int>();
+    m_drawer = new Utils::Drawer();
 
     return true;
 }
@@ -35,7 +36,7 @@ void Surface_WaveletDecomposition_Plugin::disable()
 {
     disconnect(m_waveletDecompositionAction, SIGNAL(triggered()), this, SLOT(openWaveletDecompositionDialog()));
 
-    disconnect(m_waveletDecompositionDialog->button_cancel, SIGNAL(clicked()), this, SLOT(closeWaveletDecompositionDialog()));
+    disconnect(m_waveletDecompositionDialog->button_delete_background, SIGNAL(clicked()), this, SLOT(deleteBackgroundFromDialog()));
     disconnect(m_waveletDecompositionDialog->button_move_up, SIGNAL(clicked()), this, SLOT(moveUpFromDialog()));
     disconnect(m_waveletDecompositionDialog->button_move_down, SIGNAL(clicked()), this, SLOT(moveDownFromDialog()));
 
@@ -47,6 +48,15 @@ void Surface_WaveletDecomposition_Plugin::disable()
     {
         delete m_camera;
     }
+    if(m_drawer)
+    {
+        delete m_drawer;
+    }
+}
+
+void Surface_WaveletDecomposition_Plugin::draw(View* view)
+{
+    m_drawer->callList();
 }
 
 void Surface_WaveletDecomposition_Plugin::openWaveletDecompositionDialog()
@@ -57,6 +67,15 @@ void Surface_WaveletDecomposition_Plugin::openWaveletDecompositionDialog()
 void Surface_WaveletDecomposition_Plugin::closeWaveletDecompositionDialog()
 {
     m_waveletDecompositionDialog->close();
+}
+
+void Surface_WaveletDecomposition_Plugin::deleteBackgroundFromDialog()
+{
+    QList<QListWidgetItem*> currentItems = m_waveletDecompositionDialog->list_maps->selectedItems();
+    if(!currentItems.empty())
+    {
+        deleteBackground(currentItems[0]->text());
+    }
 }
 
 void Surface_WaveletDecomposition_Plugin::moveUpFromDialog()
@@ -112,7 +131,7 @@ const QString Surface_WaveletDecomposition_Plugin::initializeObject(const QStrin
     return NULL;
 }
 
-void Surface_WaveletDecomposition_Plugin::decompose()
+void Surface_WaveletDecomposition_Plugin::decompose(const int max_counter)
 {
     if(m_decomposition)
     {
@@ -120,7 +139,8 @@ void Surface_WaveletDecomposition_Plugin::decompose()
         int width = m_decomposition->getWidth(), height = m_decomposition->getHeight();
         int img_width = width, img_height = height;
         int img_width2, img_height2;
-        while(!stop)
+        int counter = 0;
+        while(!stop && (max_counter == -1 || counter < max_counter))
         {
             img_width2  = round(img_width/2.f);
             img_height2 = round(img_height/2.f);
@@ -202,13 +222,21 @@ void Surface_WaveletDecomposition_Plugin::decompose()
             img_width  = img_width2;
             img_height = img_height2;
             m_decomposition->moveDownDecomposition();
-            if(img_width < 8 || img_height < 8)
+            if(img_width < 3 || img_height < 3)
             {
                 stop = true;
                 m_decomposition->setMaxLevel(m_decomposition->getLevel());
                 CGoGNout << m_decomposition->getLevel()+1 << " niveau(x) de décomposition" << CGoGNendl;
             }
+            ++counter;
         }
+
+        if(m_matrix_coef.empty())
+        {
+            m_matrix_coef = std::vector<int>(*m_decomposition->getCoefficientMatrix());
+        }
+
+//        updateDrawer();
     }
 }
 
@@ -237,6 +265,134 @@ void Surface_WaveletDecomposition_Plugin::saveImages(const QString& name, const 
         if(!image.save(filename))
         {
             CGoGNerr << "Image '" << filename.toStdString() << "' has not been saved" << CGoGNendl;
+        }
+    }
+}
+
+void Surface_WaveletDecomposition_Plugin::saveAllImages(const QString& name, const QString& directory)
+{
+    if(m_decomposition && !name.isEmpty() && !directory.isEmpty())
+    {
+        int img_width = m_decomposition->getWidth();
+        int img_height = m_decomposition->getHeight();
+
+        std::vector<int> matrix(m_matrix_coef);
+        std::vector<int> matrix2(matrix);
+
+        int level = m_decomposition->getLevel();
+        int counter = level;
+
+        QString filename(directory);
+        filename.append(name);
+        filename.append("-Reconstructions-");
+
+        while(counter >= 0)
+        {
+            matrix = std::vector<int>(m_matrix_coef);
+            int width = img_width/pow(2, level);
+            int height = img_height/pow(2, level);
+
+            bool use_coef = true;
+
+            while(width != img_width && height != img_height)
+            {
+                if(width == img_width/pow(2, counter) || height == img_height/pow(2, counter))
+                {
+                    use_coef = false;
+                }
+
+                matrix2 = std::vector<int>(matrix);
+
+                for(int i = 0; i < width*2; ++i)
+                {
+                    for(int j = 0; j < height*2; ++j)
+                    {
+                        int index = i+img_width*j;
+                        if(j%2 == 1)
+                        {
+                            int up = matrix2[i+img_width*(j/2)];
+                            int result = 0;
+                            if(use_coef)
+                            {
+                                result= matrix2[i+img_width*(height+j/2)];
+                            }
+                            if(j != height*2-1)
+                            {
+                                int down = matrix2[i+img_width*(j/2+1)];
+                                result += floor((up+down)/2.f + 1/2.f);
+                            }
+                            else
+                            {
+                                result += up;
+                            }
+                            matrix[index] = result;
+                        }
+                        else
+                        {
+                            matrix[index] = matrix2[i+img_width*(j/2)];
+                        }
+                    }
+                }
+
+                matrix2 = std::vector<int>(matrix);
+
+                for(int i = 0; i < width*2; ++i)
+                {
+                    for(int j = 0; j < height*2 ; ++j)
+                    {
+                        int index = i+img_width*j;
+                        if(i%2 == 1)
+                        {
+                            int left = matrix2[i/2+img_width*j];
+                            int result = 0;
+                            if(use_coef)
+                            {
+                                //Ute of the wavelet coefficients to correct the prediction
+                                result = matrix2[width+i/2+img_width*j];
+                            }
+                            if(i != width*2-1)
+                            {
+                                int right = matrix2[i/2+1+img_width*j];
+                                result += floor((left+right)/2.f + 1/2.f);
+                            }
+                            else
+                            {
+                                result += left;
+                            }
+                            matrix[index] = result;
+                        }
+                        else
+                        {
+                            matrix[index] = matrix2[i/2+img_width*j];
+                        }
+                    }
+                }
+                width *= 2;
+                height *= 2;
+            }
+
+            QString filename2(filename);
+
+            filename2.append(QString::number(counter));
+            filename2.append(".png");
+
+            QImage image(width, height, QImage::Format_RGB32);
+
+            for(int i = 0; i < width; ++i)
+            {
+                for(int j = 0; j < height; ++j)
+                {
+                    int color = matrix[i + img_width*j];
+                    image.setPixel(i, j, qRgb(qAbs(color), qAbs(color), qAbs(color)));
+                }
+            }
+
+            if(!image.save(filename2))
+            {
+                CGoGNerr << "Image '" << filename2.toStdString() << "' has not been saved" << CGoGNendl;
+            }
+
+            --counter;
         }
     }
 }
@@ -454,6 +610,65 @@ void Surface_WaveletDecomposition_Plugin::triangulateMap(const QString& mapName)
             }
 
             mh_map->notifyConnectivityModification();
+
+            m_schnapps->getSelectedView()->updateGL();
+        }
+    }
+}
+
+void Surface_WaveletDecomposition_Plugin::deleteBackground(const QString& mapName)
+{
+    if(m_decomposition)
+    {
+        MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(m_schnapps->getMap(mapName));
+
+        if(mh_map)
+        {
+            PFP2::MAP* map = mh_map->getMap();
+
+            VertexAttribute<PFP2::VEC3, PFP2::MAP> position = mh_map->getAttribute<PFP2::VEC3, VERTEX>("position");
+            if(!position.isValid())
+            {
+                position = mh_map->addAttribute<PFP2::VEC3, VERTEX>("position");
+            }
+
+            VertexAttribute<PFP2::VEC3, PFP2::MAP> planeCoordinates = mh_map->getAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
+            if(!planeCoordinates.isValid())
+            {
+                planeCoordinates = mh_map->addAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
+            }
+
+            VertexAttribute<ImageCoordinates, PFP2::MAP> imageCoordinates = mh_map->getAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
+            if(!imageCoordinates.isValid())
+            {
+                imageCoordinates = mh_map->addAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
+            }
+
+            TraversorF<PFP2::MAP> trav_face_map(*map);
+            Dart next;
+            bool stop = false;
+            for(Dart d = trav_face_map.begin(); d != trav_face_map.end(); d = next)
+            {
+                next = trav_face_map.next();
+                stop = false;
+                Traversor2FV<PFP2::MAP> trav_vert_face_map(*map, d);
+                for(Dart dd = trav_vert_face_map.begin(); !stop && dd != trav_vert_face_map.end(); dd = trav_vert_face_map.next())
+                {
+                    int color = m_matrix_coef[imageCoordinates[dd].getXCoordinate()+m_decomposition->getWidth()*imageCoordinates[dd].getYCoordinate()];
+                    if(color==0)
+                    {
+                        map->deleteFace(d);
+                        stop = true;
+                    }
+                }
+            }
+
+            mh_map->notifyConnectivityModification();
+            mh_map->notifyAttributeModification(position);
+            mh_map->notifyAttributeModification(planeCoordinates);
+            mh_map->notifyAttributeModification(imageCoordinates);
+
+            mh_map->updateBB(position);
 
             m_schnapps->getSelectedView()->updateGL();
         }
@@ -913,6 +1128,39 @@ void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
             m_schnapps->getSelectedView()->updateGL();
 
         }
+    }
+}
+
+void Surface_WaveletDecomposition_Plugin::updateDrawer()
+{
+    if(m_decomposition)
+    {
+        int img_width = m_decomposition->getWidth();
+        int img_height = m_decomposition->getHeight();
+
+        int diff_level = pow(2, 0);
+
+        int width = img_width/diff_level;
+        int height = img_height/diff_level;
+
+        m_drawer->newList(GL_COMPILE_AND_EXECUTE);
+            m_drawer->begin(GL_POINTS);
+                m_drawer->color3f(1.f, 1.f, 0.f);
+                m_drawer->pointSize(10.f);
+
+                for(int i = 0; i < width; ++i)
+                {
+                    for(int j = 0; j < height; ++j)
+                    {
+                        m_drawer->vertex3f(i*diff_level, j*diff_level, 0.f);
+                    }
+                }
+
+            m_drawer->end();
+        m_drawer->endList();
+
+        m_schnapps->getSelectedView()->getCurrentCamera()->setSceneCenter(qglviewer::Vec(0.f, 0.f, 0.f));
+        m_schnapps->getSelectedView()->updateGL();
     }
 }
 
