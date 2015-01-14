@@ -99,7 +99,6 @@ public:
         : m_width(width),
           m_height(height),
           m_matrix_decomposition(width*height),
-          m_matrix_difference(width*height),
           m_level(level),
           m_max_level(level)
     {
@@ -133,31 +132,6 @@ public:
         }
     }
 
-    void setDifference(const int x, const int y, const int difference)
-    {
-        if(x >= 0 && y >= 0 && x < m_width && y < m_height)
-        {
-            m_matrix_difference[x+m_width*y] = difference;
-        }
-        else
-        {
-            CGoGNerr << "setDifference : Indices {" << x << ", " << y << "} not in the range [0; {" << m_width-1 << ", " << m_height-1 << "}]" << CGoGNendl;
-        }
-    }
-
-    int getDifference(const int x, const int y)
-    {
-        if(x >= 0 && y >= 0 && x < m_width && y < m_height)
-        {
-            return m_matrix_difference[x+m_width*y];
-        }
-        else
-        {
-            CGoGNerr << "getDifference : Indices {" << x << ", " << y << "} not in the range [0; {" << m_width-1 << ", " << m_height-1 << "}]" << CGoGNendl;
-            return 0;
-        }
-    }
-
     int getWidth() { return m_width; }
 
     int getHeight() { return m_height; }
@@ -176,18 +150,11 @@ public:
         m_matrix_decomposition = std::vector<int>(matrix);
     }
 
-    void setDifferenceMatrix(const std::vector<int>& matrix)
-    {
-        m_matrix_difference = std::vector<int>(matrix);
-    }
-
     std::vector<int>* getCoefficientMatrix() { return &m_matrix_decomposition; }
-    std::vector<int>* getDifferenceMatrix() { return &m_matrix_difference; }
 
 private:
     int m_width, m_height;
     std::vector<int> m_matrix_decomposition;
-    std::vector<int> m_matrix_difference;
     int m_level;
     int m_max_level;
 };

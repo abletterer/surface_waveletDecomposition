@@ -74,8 +74,6 @@ public slots:
     void moveDownDecomposition(const QString& mapName);
 
 private:
-    void updateDrawer();
-
     Dialog_Surface_WaveletDecomposition* m_waveletDecompositionDialog;
     QAction* m_waveletDecompositionAction;
 
