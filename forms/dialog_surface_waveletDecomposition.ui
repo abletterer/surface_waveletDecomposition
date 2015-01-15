@@ -20,13 +20,6 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
-      <widget class="QPushButton" name="button_delete_background">
-       <property name="text">
-        <string>Delete Background</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QPushButton" name="button_move_up">
        <property name="text">
         <string>Move Up</string>
@@ -37,6 +30,24 @@
       <widget class="QPushButton" name="button_move_down">
        <property name="text">
         <string>Move Down</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QPushButton" name="button_delete_background">
+       <property name="text">
+        <string>Delete Background</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="button_triangulate_map">
+       <property name="text">
+        <string>Triangulate</string>
        </property>
       </widget>
      </item>

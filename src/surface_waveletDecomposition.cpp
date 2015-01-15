@@ -21,13 +21,14 @@ bool Surface_WaveletDecomposition_Plugin::enable()
     connect(m_waveletDecompositionAction, SIGNAL(triggered()), this, SLOT(openWaveletDecompositionDialog()));
 
     connect(m_waveletDecompositionDialog->button_delete_background, SIGNAL(clicked()), this, SLOT(deleteBackgroundFromDialog()));
+    connect(m_waveletDecompositionDialog->button_triangulate_map, SIGNAL(clicked()), this, SLOT(triangulateMapFromDialog()));
+
     connect(m_waveletDecompositionDialog->button_move_up, SIGNAL(clicked()), this, SLOT(moveUpFromDialog()));
     connect(m_waveletDecompositionDialog->button_move_down, SIGNAL(clicked()), this, SLOT(moveDownFromDialog()));
 
     m_decomposition = NULL;
     m_camera = NULL;
     m_matrix_coef = std::vector<int>();
-    m_drawer = new Utils::Drawer();
 
     return true;
 }
@@ -37,6 +38,8 @@ void Surface_WaveletDecomposition_Plugin::disable()
     disconnect(m_waveletDecompositionAction, SIGNAL(triggered()), this, SLOT(openWaveletDecompositionDialog()));
 
     disconnect(m_waveletDecompositionDialog->button_delete_background, SIGNAL(clicked()), this, SLOT(deleteBackgroundFromDialog()));
+    disconnect(m_waveletDecompositionDialog->button_triangulate_map, SIGNAL(clicked()), this, SLOT(triangulateMapFromDialog()));
+
     disconnect(m_waveletDecompositionDialog->button_move_up, SIGNAL(clicked()), this, SLOT(moveUpFromDialog()));
     disconnect(m_waveletDecompositionDialog->button_move_down, SIGNAL(clicked()), this, SLOT(moveDownFromDialog()));
 
@@ -48,15 +51,6 @@ void Surface_WaveletDecomposition_Plugin::disable()
     {
         delete m_camera;
     }
-    if(m_drawer)
-    {
-        delete m_drawer;
-    }
-}
-
-void Surface_WaveletDecomposition_Plugin::draw(View* view)
-{
-    m_drawer->callList();
 }
 
 void Surface_WaveletDecomposition_Plugin::openWaveletDecompositionDialog()
@@ -75,6 +69,15 @@ void Surface_WaveletDecomposition_Plugin::deleteBackgroundFromDialog()
     if(!currentItems.empty())
     {
         deleteBackground(currentItems[0]->text());
+    }
+}
+
+void Surface_WaveletDecomposition_Plugin::triangulateMapFromDialog()
+{
+    QList<QListWidgetItem*> currentItems = m_waveletDecompositionDialog->list_maps->selectedItems();
+    if(!currentItems.empty())
+    {
+        triangulateMap(currentItems[0]->text());
     }
 }
 
@@ -646,7 +649,7 @@ void Surface_WaveletDecomposition_Plugin::deleteBackground(const QString& mapNam
                 for(Dart dd = trav_vert_face_map.begin(); !stop && dd != trav_vert_face_map.end(); dd = trav_vert_face_map.next())
                 {
                     int color = m_matrix_coef[imageCoordinates[dd].getXCoordinate()+m_decomposition->getWidth()*imageCoordinates[dd].getYCoordinate()];
-                    if(color==0)
+                    if(color<128)
                     {
                         map->deleteFace(d);
                         stop = true;
@@ -764,7 +767,7 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             height *= 2;
 
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-            grid.embedIntoGrid(planeCoordinates, img_width-1, img_width-1);
+            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
@@ -778,8 +781,9 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
 
             mh_map->notifyAttributeModification(planeCoordinates);
             mh_map->notifyAttributeModification(imageCoordinates);
+            mh_map->notifyConnectivityModification();
 
-            triangulateMap(mapName);
+            //triangulateMap(mapName);
 
             project2DImageTo3DSpace(mapName);
         }
@@ -879,7 +883,7 @@ void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
             height /= 2;
 
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-            grid.embedIntoGrid(planeCoordinates, img_width-1, img_width-1);
+            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
@@ -893,8 +897,9 @@ void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
 
             mh_map->notifyAttributeModification(planeCoordinates);
             mh_map->notifyAttributeModification(imageCoordinates);
+            mh_map->notifyConnectivityModification();
 
-            triangulateMap(mapName);
+            //triangulateMap(mapName);
 
             project2DImageTo3DSpace(mapName);
         }

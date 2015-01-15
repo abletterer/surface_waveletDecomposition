@@ -36,7 +36,7 @@ public:
     virtual bool enable();
     virtual void disable();
 
-    virtual void draw(View* view);
+    virtual void draw(View* view) {}
     virtual void drawMap(View* view, MapHandlerGen* map) {}
 
     virtual void keyPress(View* view, QKeyEvent* event) {}
@@ -53,6 +53,7 @@ private slots:
     void closeWaveletDecompositionDialog();
 
     void deleteBackgroundFromDialog();
+    void triangulateMapFromDialog();
 
     void moveUpFromDialog();
     void moveDownFromDialog();
@@ -81,7 +82,6 @@ protected:
     Decomposition* m_decomposition;
     qglviewer::Camera* m_camera;
     std::vector<int> m_matrix_coef;
-    Utils::Drawer* m_drawer;
 };
 
 } // namespace SCHNApps
