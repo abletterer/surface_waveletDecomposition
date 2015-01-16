@@ -308,6 +308,7 @@ void Surface_WaveletDecomposition_Plugin::saveAllImages(const QString& name, con
                             int result = 0;
                             if(use_coef)
                             {
+                                //Use of the wavelet coefficients to correct the prediction
                                 result= matrix2[i+img_width*(height+j/2)];
                             }
                             if(j != height*2-1)
@@ -341,7 +342,7 @@ void Surface_WaveletDecomposition_Plugin::saveAllImages(const QString& name, con
                             int result = 0;
                             if(use_coef)
                             {
-                                //Ute of the wavelet coefficients to correct the prediction
+                                //Use of the wavelet coefficients to correct the prediction
                                 result = matrix2[width+i/2+img_width*j];
                             }
                             if(i != width*2-1)
@@ -419,7 +420,11 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
         int width = img_width/pow(2, m_decomposition->getLevel()), height = img_height/pow(2, m_decomposition->getLevel());
 
         Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-        grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
+        grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1, 0.f, img_width-1, img_height-1);
+//        grid.embedIntoGrid(planeCoordinates,
+//                           img_width-1-pow(2, m_decomposition->getLevel()),
+//                           img_height-1-pow(2, m_decomposition->getLevel()),
+//                           0.f, img_width-1, img_height-1);
 
         std::vector<Dart> vDarts = grid.getVertexDarts();
 
@@ -649,7 +654,7 @@ void Surface_WaveletDecomposition_Plugin::deleteBackground(const QString& mapNam
                 for(Dart dd = trav_vert_face_map.begin(); !stop && dd != trav_vert_face_map.end(); dd = trav_vert_face_map.next())
                 {
                     int color = m_matrix_coef[imageCoordinates[dd].getXCoordinate()+m_decomposition->getWidth()*imageCoordinates[dd].getYCoordinate()];
-                    if(color<128)
+                    if(color==0)
                     {
                         map->deleteFace(d);
                         stop = true;
@@ -767,7 +772,11 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             height *= 2;
 
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
+            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1, 0.f, img_width-1, img_height-1);
+//            grid.embedIntoGrid(planeCoordinates,
+//                               img_width-1-pow(2, m_decomposition->getLevel()),
+//                               img_height-1-pow(2, m_decomposition->getLevel()),
+//                               0.f, img_width-1, img_height-1);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
@@ -883,7 +892,11 @@ void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
             height /= 2;
 
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
+            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1, 0.f, img_width-1, img_height-1);
+//            grid.embedIntoGrid(planeCoordinates,
+//                               img_width-1-pow(2, m_decomposition->getLevel()),
+//                               img_height-1-pow(2, m_decomposition->getLevel()),
+//                               0.f, img_width-1, img_height-1);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
