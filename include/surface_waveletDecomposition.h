@@ -64,6 +64,7 @@ public slots:
     void decompose(const int max_counter = -1);
     void saveImages(const QString& name, const QString& directory = "/home/blettere/Projets/Models/Decomposition/");
     void saveAllImages(const QString& name, const QString& directory = "/home/blettere/Projets/Models/Decomposition/");
+    void saveDecompositions(const QString& name, const QString& directory = "/home/blettere/Projets/Models/Comparison/Histograms");
     MapHandlerGen* drawCoarseImage(const QString& mapName);
 
     void project2DImageTo3DSpace(const QString& mapName);
