@@ -216,8 +216,6 @@ void Surface_WaveletDecomposition_Plugin::decompose(const int max_counter)
             img_width  = img_width2;
             img_height = img_height2;
             m_decomposition->moveDownDecomposition();
-            stop = true;
-            m_decomposition->setMaxLevel(m_decomposition->getLevel());
             if(img_width < 3 || img_height < 3)
             {
                 stop = true;
@@ -396,8 +394,9 @@ void Surface_WaveletDecomposition_Plugin::saveAllImages(const QString& name, con
 
 void Surface_WaveletDecomposition_Plugin::saveDecompositions(const QString& name, const QString& directory)
 {
-    if(m_decomposition && !name.isEmpty() && !directory.isEmpty())
+    if(m_decomposition && m_decomposition->getLevel()>0 && !name.isEmpty() && !directory.isEmpty())
     {
+        CGoGNout << "Enregistrement des décompositions" << CGoGNendl;
         int img_width = m_decomposition->getWidth();
         int img_height = m_decomposition->getHeight();
 
@@ -407,7 +406,26 @@ void Surface_WaveletDecomposition_Plugin::saveDecompositions(const QString& name
         int height = img_height/pow(2, level);
 
         QString filename(directory);
+        filename.append("/");
         filename.append(name);
+        filename.append("/");
+
+        mkdir(filename.toStdString().c_str(), 0777);
+
+        filename.append(name);
+        filename.append("-");
+        filename.append(QString::number(width));
+        filename.append("x");
+        filename.append(QString::number(height));
+        filename.append("/");
+
+        mkdir(filename.toStdString().c_str(), 0777);
+
+        filename.append(name);
+        filename.append("-");
+        filename.append(QString::number(width));
+        filename.append("x");
+        filename.append(QString::number(height));
 
         std::vector<int> values_hl;
         values_hl.resize(511, 0);
@@ -445,9 +463,9 @@ void Surface_WaveletDecomposition_Plugin::saveDecompositions(const QString& name
             }
         }
 
+        CGoGNStream::Out file_hl, file_lh, file_hh;
         QString filename2(filename);
         filename2.append("-HL.dat");
-        CGoGNStream::Out file_hl, file_lh, file_hh;
         file_hl.toFile(filename2.toStdString());
         filename2 = QString(filename);
         filename2.append("-LH.dat");
@@ -455,6 +473,10 @@ void Surface_WaveletDecomposition_Plugin::saveDecompositions(const QString& name
         filename2 = QString(filename);
         filename2.append("-HH.dat");
         file_hh.toFile(filename2.toStdString());
+
+        file_hl.toStd(false);
+        file_lh.toStd(false);
+        file_hh.toStd(false);
 
         for(int i = 0; i < 511; ++i)
         {
@@ -507,11 +529,11 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
         int width = img_width/pow(2, m_decomposition->getLevel()), height = img_height/pow(2, m_decomposition->getLevel());
 
         Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-        grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
-//        grid.embedIntoGrid(planeCoordinates,
-//                           img_width-1-pow(2, m_decomposition->getLevel()),
-//                           img_height-1-pow(2, m_decomposition->getLevel()),
-//                           0.f, img_width-1, img_height-1);
+//        grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1, 0, img_width-1, img_height-1);
+        grid.embedIntoGrid(planeCoordinates,
+                           img_width-1-pow(2, m_decomposition->getLevel()),
+                           img_height-1-pow(2, m_decomposition->getLevel()),
+                           0.f, img_width-1, img_height-1);
 
         std::vector<Dart> vDarts = grid.getVertexDarts();
 
@@ -741,7 +763,7 @@ void Surface_WaveletDecomposition_Plugin::deleteBackground(const QString& mapNam
                 for(Dart dd = trav_vert_face_map.begin(); !stop && dd != trav_vert_face_map.end(); dd = trav_vert_face_map.next())
                 {
                     int color = m_matrix_coef[imageCoordinates[dd].getXCoordinate()+m_decomposition->getWidth()*imageCoordinates[dd].getYCoordinate()];
-                    if(color==0)
+                    if(color<128)
                     {
                         map->deleteFace(d);
                         stop = true;
@@ -761,7 +783,7 @@ void Surface_WaveletDecomposition_Plugin::deleteBackground(const QString& mapNam
     }
 }
 
-void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& mapName)
+bool Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& mapName)
 {
     if(m_decomposition && m_decomposition->getLevel()>0)
     {
@@ -859,11 +881,11 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             height *= 2;
 
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
-//            grid.embedIntoGrid(planeCoordinates,
-//                               img_width-1-pow(2, m_decomposition->getLevel()),
-//                               img_height-1-pow(2, m_decomposition->getLevel()),
-//                               0.f, img_width-1, img_height-1);
+//            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1, 0, img_width-1, img_height-1);
+            grid.embedIntoGrid(planeCoordinates,
+                               img_width-1-pow(2, m_decomposition->getLevel()),
+                               img_height-1-pow(2, m_decomposition->getLevel()),
+                               0.f, img_width-1, img_height-1);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
@@ -884,9 +906,14 @@ void Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             project2DImageTo3DSpace(mapName);
         }
     }
+    else
+    {
+        return false;
+    }
+    return true;
 }
 
-void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& mapName)
+bool Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& mapName)
 {
     if(m_decomposition && m_decomposition->getLevel() < m_decomposition->getMaxLevel())
     {
@@ -979,11 +1006,11 @@ void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
             height /= 2;
 
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
-//            grid.embedIntoGrid(planeCoordinates,
-//                               img_width-1-pow(2, m_decomposition->getLevel()),
-//                               img_height-1-pow(2, m_decomposition->getLevel()),
-//                               0.f, img_width-1, img_height-1);
+//            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1, 0, img_width-1, img_height-1);
+            grid.embedIntoGrid(planeCoordinates,
+                               img_width-1-pow(2, m_decomposition->getLevel()),
+                               img_height-1-pow(2, m_decomposition->getLevel()),
+                               0.f, img_width-1, img_height-1);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
@@ -1004,6 +1031,11 @@ void Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
             project2DImageTo3DSpace(mapName);
         }
     }
+    else
+    {
+        return false;
+    }
+    return true;
 }
 
 #ifndef DEBUG

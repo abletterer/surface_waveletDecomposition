@@ -72,8 +72,8 @@ public slots:
 
     void triangulateMap(const QString& mapName);
     void deleteBackground(const QString& mapName);
-    void moveUpDecomposition(const QString& mapName);
-    void moveDownDecomposition(const QString& mapName);
+    bool moveUpDecomposition(const QString& mapName);
+    bool moveDownDecomposition(const QString& mapName);
 
 private:
     Dialog_Surface_WaveletDecomposition* m_waveletDecompositionDialog;
