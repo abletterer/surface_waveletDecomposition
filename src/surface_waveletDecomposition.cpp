@@ -216,7 +216,7 @@ void Surface_WaveletDecomposition_Plugin::decompose(const int max_counter)
             img_width  = img_width2;
             img_height = img_height2;
             m_decomposition->moveDownDecomposition();
-            if(img_width < 3 || img_height < 3)
+            if(img_width < 32 || img_height < 32)
             {
                 stop = true;
                 m_decomposition->setMaxLevel(m_decomposition->getLevel());
@@ -394,9 +394,9 @@ void Surface_WaveletDecomposition_Plugin::saveAllImages(const QString& name, con
 
 void Surface_WaveletDecomposition_Plugin::saveDecompositions(const QString& name, const QString& directory)
 {
-    if(m_decomposition && m_decomposition->getLevel()>0 && !name.isEmpty() && !directory.isEmpty())
+    if(m_decomposition && !name.isEmpty() && !directory.isEmpty())
     {
-        CGoGNout << "Enregistrement des décompositions" << CGoGNendl;
+
         int img_width = m_decomposition->getWidth();
         int img_height = m_decomposition->getHeight();
 
@@ -404,6 +404,8 @@ void Surface_WaveletDecomposition_Plugin::saveDecompositions(const QString& name
 
         int width = img_width/pow(2, level);
         int height = img_height/pow(2, level);
+
+        CGoGNout << "Enregistrement du niveau " << level << CGoGNendl;
 
         QString filename(directory);
         filename.append("/");
@@ -413,91 +415,144 @@ void Surface_WaveletDecomposition_Plugin::saveDecompositions(const QString& name
         mkdir(filename.toStdString().c_str(), 0777);
 
         filename.append(name);
-        filename.append("-");
-        filename.append(QString::number(width));
-        filename.append("x");
-        filename.append(QString::number(height));
-        filename.append("/");
 
-        mkdir(filename.toStdString().c_str(), 0777);
-
-        filename.append(name);
-        filename.append("-");
-        filename.append(QString::number(width));
-        filename.append("x");
-        filename.append(QString::number(height));
-
-        std::vector<int> values_hl;
-        values_hl.resize(511, 0);
-
-        //Print HL coefficients
-        for(int i = width; i < width*2; ++i)
+        if(level>0)
         {
-            for(int j = 0; j < height; ++j)
+            filename.append("-");
+            filename.append(QString::number(width));
+            filename.append("x");
+            filename.append(QString::number(height));
+            filename.append("/");
+
+            mkdir(filename.toStdString().c_str(), 0777);
+
+            filename.append(name);
+            filename.append("-");
+            filename.append(QString::number(width));
+            filename.append("x");
+            filename.append(QString::number(height));
+
+            std::vector<int> values_ll;
+            values_ll.resize(256, 0);
+
+            //Print LL values
+            for(int i = 0; i < width; ++i)
             {
-                ++values_hl[255+m_matrix_coef[i+img_width*j]];
+                for(int j = 0; j < height; ++j)
+                {
+                    ++values_ll[m_matrix_coef[i+img_width*j]];
+                }
             }
-        }
 
-        std::vector<int> values_lh;
-        values_lh.resize(511, 0);
+            std::vector<int> values_hl;
+            values_hl.resize(511, 0);
 
-        //Print LH coefficients
-        for(int i = 0; i < width; ++i)
-        {
-            for(int j = height; j < height*2; ++j)
+            //Print HL coefficients
+            for(int i = width; i < width*2; ++i)
             {
-                ++values_lh[255+m_matrix_coef[i+img_width*j]];
+                for(int j = 0; j < height; ++j)
+                {
+                    ++values_hl[255+m_matrix_coef[i+img_width*j]];
+                }
             }
-        }
 
-        std::vector<int> values_hh;
-        values_hh.resize(511, 0);
+            std::vector<int> values_lh;
+            values_lh.resize(511, 0);
 
-        //Print HH coefficients
-        for(int i = width; i < width*2; ++i)
-        {
-            for(int j = height; j < height*2; ++j)
+            //Print LH coefficients
+            for(int i = 0; i < width; ++i)
             {
-                ++values_hh[255+m_matrix_coef[i+img_width*j]];
+                for(int j = height; j < height*2; ++j)
+                {
+                    ++values_lh[255+m_matrix_coef[i+img_width*j]];
+                }
             }
+
+            std::vector<int> values_hh;
+            values_hh.resize(511, 0);
+
+            //Print HH coefficients
+            for(int i = width; i < width*2; ++i)
+            {
+                for(int j = height; j < height*2; ++j)
+                {
+                    ++values_hh[255+m_matrix_coef[i+img_width*j]];
+                }
+            }
+
+            CGoGNStream::Out file_ll, file_hl, file_lh, file_hh;
+            QString filename2(filename);
+            filename2.append("-LL.dat");
+            file_ll.toFile(filename2.toStdString());
+            filename2 = QString(filename);
+            filename2.append("-HL.dat");
+            file_hl.toFile(filename2.toStdString());
+            filename2 = QString(filename);
+            filename2.append("-LH.dat");
+            file_lh.toFile(filename2.toStdString());
+            filename2 = QString(filename);
+            filename2.append("-HH.dat");
+            file_hh.toFile(filename2.toStdString());
+
+            file_ll.toStd(false);
+            file_hl.toStd(false);
+            file_lh.toStd(false);
+            file_hh.toStd(false);
+
+            for(int i = 0; i < 256; ++i)
+            {
+                file_ll << i << " " << values_ll[i]/(float)(width*height) << CGoGNendl;
+            }
+
+            file_ll.close();
+
+            for(int i = 0; i < 511; ++i)
+            {
+                file_hl << i-255 << " " << values_hl[i]/(float)(width*height) << CGoGNendl;
+            }
+
+            file_hl.close();
+
+            for(int i = 0; i < 511; ++i)
+            {
+                file_lh << i-255 << " " << values_lh[i]/(float)(width*height) << CGoGNendl;
+            }
+
+            file_lh.close();
+
+            for(int i = 0; i < 511; ++i)
+            {
+                file_hh << i-255 << " " << values_hh[i]/(float)(width*height) << CGoGNendl;
+            }
+
+            file_hh.close();
         }
-
-        CGoGNStream::Out file_hl, file_lh, file_hh;
-        QString filename2(filename);
-        filename2.append("-HL.dat");
-        file_hl.toFile(filename2.toStdString());
-        filename2 = QString(filename);
-        filename2.append("-LH.dat");
-        file_lh.toFile(filename2.toStdString());
-        filename2 = QString(filename);
-        filename2.append("-HH.dat");
-        file_hh.toFile(filename2.toStdString());
-
-        file_hl.toStd(false);
-        file_lh.toStd(false);
-        file_hh.toStd(false);
-
-        for(int i = 0; i < 511; ++i)
+        else
         {
-            file_hl << i-255 << " " << values_hl[i] << CGoGNendl;
+            std::vector<int> values;
+            values.resize(256, 0);
+
+            //Print HL coefficients
+            for(int i = 0; i < width; ++i)
+            {
+                for(int j = 0; j < height; ++j)
+                {
+                    ++values[m_matrix_coef[i+img_width*j]];
+                }
+            }
+
+            CGoGNStream::Out file;
+            filename.append(".dat");
+            file.toFile(filename.toStdString());
+            file.toStd(false);
+
+            for(int i = 0; i < 256; ++i)
+            {
+                file << i << " " << values[i]/(float)(width*height) << CGoGNendl;
+            }
+
+            file.close();
         }
-
-        file_hl.close();
-
-        for(int i = 0; i < 511; ++i)
-        {
-            file_lh << i-255 << " " << values_lh[i] << CGoGNendl;
-        }
-
-        file_lh.close();
-
-        for(int i = 0; i < 511; ++i)
-        {
-            file_hh << i-255 << " " << values_hh[i] << CGoGNendl;
-        }
-
-        file_hh.close();
     }
 }
 
