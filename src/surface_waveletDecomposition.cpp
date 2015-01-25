@@ -556,60 +556,97 @@ void Surface_WaveletDecomposition_Plugin::saveDecompositions(const QString& name
     }
 }
 
+void Surface_WaveletDecomposition_Plugin::saveMesh(const QString& mapName, const QString& directory)
+{
+    if(m_decomposition && !mapName.isEmpty() && !directory.isEmpty())
+    {
+        MapHandlerGen* mhg_map = m_schnapps->getMap(mapName);
+        MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(mhg_map);
+
+        if(mh_map)
+        {
+            QString filename(directory);
+            filename.append("/");
+            filename.append(mapName);
+            filename.append("-");
+            filename.append(QString::number(m_decomposition->getLevel()));
+            filename.append(".ply");
+
+            CGoGNout << "Saving mesh in '" << filename.toStdString() << "' .." << CGoGNflush;
+
+            PFP2::MAP* map = mh_map->getMap();
+
+            VertexAttribute<PFP2::VEC3, PFP2::MAP> position = mh_map->getAttribute<PFP2::VEC3, VERTEX>("position");
+            if(!position.isValid())
+            {
+                CGoGNerr << "Position attribute is not valid" << CGoGNendl;
+            }
+
+            Algo::Surface::Export::exportPLY<PFP2>(*map, position, filename.toStdString().c_str(), false);
+
+            CGoGNout << ".. done" << CGoGNendl;
+        }
+    }
+}
+
 MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QString& mapName)
 {
-    if(m_decomposition)
+    if(m_decomposition && !mapName.isEmpty())
     {
-        CGoGNout << "Drawing image .." << CGoGNflush;
-        Utils::Chrono chrono;
-        chrono.start();
 
         MapHandlerGen* mhg_map = m_schnapps->addMap(mapName, 2);
         MapHandler<PFP2>* mh_map = static_cast<MapHandler<PFP2>*>(mhg_map);
-        PFP2::MAP* map = mh_map->getMap();
 
-        VertexAttribute<PFP2::VEC3, PFP2::MAP> planeCoordinates = mh_map->getAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
-        if(!planeCoordinates.isValid())
+        if(mh_map)
         {
-            planeCoordinates = mh_map->addAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
-        }
+            CGoGNout << "Drawing image .." << CGoGNflush;
+            Utils::Chrono chrono;
+            chrono.start();
+            PFP2::MAP* map = mh_map->getMap();
 
-        VertexAttribute<ImageCoordinates, PFP2::MAP> imageCoordinates = mh_map->getAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
-        if(!imageCoordinates.isValid())
-        {
-            imageCoordinates = mh_map->addAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
-        }
-
-        int img_width = m_decomposition->getWidth(), img_height = m_decomposition->getHeight();
-        int width = img_width/pow(2, m_decomposition->getLevel()), height = img_height/pow(2, m_decomposition->getLevel());
-
-        Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-//        grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1, 0, img_width-1, img_height-1);
-        grid.embedIntoGrid(planeCoordinates,
-                           img_width-1-pow(2, m_decomposition->getLevel()),
-                           img_height-1-pow(2, m_decomposition->getLevel()),
-                           0.f, img_width-1, img_height-1);
-
-        std::vector<Dart> vDarts = grid.getVertexDarts();
-
-        for(int i = 0; i < width; ++i)
-        {
-            for(int j = 0; j < height; ++j)
+            VertexAttribute<PFP2::VEC3, PFP2::MAP> planeCoordinates = mh_map->getAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
+            if(!planeCoordinates.isValid())
             {
-                imageCoordinates[vDarts[j*width+i]].setCoordinates(i, height-j-1);
+                planeCoordinates = mh_map->addAttribute<PFP2::VEC3, VERTEX>("PlaneCoordinates");
             }
+
+            VertexAttribute<ImageCoordinates, PFP2::MAP> imageCoordinates = mh_map->getAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
+            if(!imageCoordinates.isValid())
+            {
+                imageCoordinates = mh_map->addAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
+            }
+
+            int img_width = m_decomposition->getWidth(), img_height = m_decomposition->getHeight();
+            int width = img_width/pow(2, m_decomposition->getLevel()), height = img_height/pow(2, m_decomposition->getLevel());
+
+            Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
+            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
+    //        grid.embedIntoGrid(planeCoordinates,
+    //                           img_width-1-pow(2, m_decomposition->getLevel()),
+    //                           img_height-1-pow(2, m_decomposition->getLevel()),
+    //                           0.f, img_width-1, img_height-1);
+
+            std::vector<Dart> vDarts = grid.getVertexDarts();
+
+            for(int i = 0; i < width; ++i)
+            {
+                for(int j = 0; j < height; ++j)
+                {
+                    imageCoordinates[vDarts[j*width+i]].setCoordinates(i, height-j-1);
+                }
+            }
+
+            mh_map->notifyConnectivityModification();
+            mh_map->updateBB(planeCoordinates);
+            mh_map->notifyAttributeModification(planeCoordinates);
+            mh_map->notifyAttributeModification(imageCoordinates);
+
+            CGoGNout << ".. finished in " << chrono.elapsed() << " ms." << CGoGNendl;
+
+    //        project2DImageTo3DSpace(mapName);
+
+            return mhg_map;
         }
-
-        mh_map->notifyConnectivityModification();
-        mh_map->updateBB(planeCoordinates);
-        mh_map->notifyAttributeModification(planeCoordinates);
-        mh_map->notifyAttributeModification(imageCoordinates);
-
-        CGoGNout << ".. finished in " << chrono.elapsed() << " ms." << CGoGNendl;
-
-//        project2DImageTo3DSpace(mapName);
-
-        return mhg_map;
     }
     return NULL;
 }
@@ -936,11 +973,11 @@ bool Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             height *= 2;
 
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-//            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1, 0, img_width-1, img_height-1);
-            grid.embedIntoGrid(planeCoordinates,
-                               img_width-1-pow(2, m_decomposition->getLevel()),
-                               img_height-1-pow(2, m_decomposition->getLevel()),
-                               0.f, img_width-1, img_height-1);
+            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
+//            grid.embedIntoGrid(planeCoordinates,
+//                               img_width-1-pow(2, m_decomposition->getLevel()),
+//                               img_height-1-pow(2, m_decomposition->getLevel()),
+//                               0.f, img_width-1, img_height-1);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
@@ -1061,11 +1098,11 @@ bool Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
             height /= 2;
 
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
-//            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1, 0, img_width-1, img_height-1);
-            grid.embedIntoGrid(planeCoordinates,
-                               img_width-1-pow(2, m_decomposition->getLevel()),
-                               img_height-1-pow(2, m_decomposition->getLevel()),
-                               0.f, img_width-1, img_height-1);
+            grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
+//            grid.embedIntoGrid(planeCoordinates,
+//                               img_width-1-pow(2, m_decomposition->getLevel()),
+//                               img_height-1-pow(2, m_decomposition->getLevel()),
+//                               0.f, img_width-1, img_height-1);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
