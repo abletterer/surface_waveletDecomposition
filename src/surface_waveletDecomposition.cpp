@@ -565,9 +565,18 @@ void Surface_WaveletDecomposition_Plugin::saveMesh(const QString& mapName, const
 
         if(mh_map)
         {
+            mkdir(directory.toStdString().c_str(), 0777);
+
             QString filename(directory);
             filename.append("/");
             filename.append(mapName);
+
+            mkdir(filename.toStdString().c_str(), 0777);
+
+            filename.append("/");
+
+            filename.append(mapName);
+
             filename.append("-");
             filename.append(QString::number(m_decomposition->getLevel()));
             filename.append(".ply");
@@ -616,15 +625,28 @@ MapHandlerGen* Surface_WaveletDecomposition_Plugin::drawCoarseImage(const QStrin
                 imageCoordinates = mh_map->addAttribute<ImageCoordinates, VERTEX>("ImageCoordinates");
             }
 
+            int l_p = pow(2, m_decomposition->getLevel());
+
             int img_width = m_decomposition->getWidth(), img_height = m_decomposition->getHeight();
-            int width = img_width/pow(2, m_decomposition->getLevel()), height = img_height/pow(2, m_decomposition->getLevel());
+            int width = img_width/l_p, height = img_height/l_p;
 
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
             grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
-    //        grid.embedIntoGrid(planeCoordinates,
-    //                           img_width-1-pow(2, m_decomposition->getLevel()),
-    //                           img_height-1-pow(2, m_decomposition->getLevel()),
-    //                           0.f, img_width-1, img_height-1);
+
+            mh_map->updateBB(planeCoordinates);
+
+            qglviewer::Vec bb_min = mh_map->getBBmin();
+            qglviewer::Vec bb_max = mh_map->getBBmax();
+
+            float width_step = (bb_max.x-bb_min.x)/img_width;
+            float height_step = (bb_max.y-bb_min.y)/img_height;
+
+            grid.embedIntoGrid(planeCoordinates, img_width-1-l_p, img_height-1-l_p);
+
+            PFP2::MATRIX44 transform_matrix;
+            transform_matrix.identity();
+            transform_matrix.setSubVectorV(0, 3, PFP2::VEC4(-(width_step*(l_p-1))/2., (height_step*(l_p-1))/2., 0., 1.));
+            grid.transform(planeCoordinates, transform_matrix);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
@@ -972,12 +994,25 @@ bool Surface_WaveletDecomposition_Plugin::moveUpDecomposition(const QString& map
             width *= 2;
             height *= 2;
 
+            int l_p = pow(2, m_decomposition->getLevel());
+
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
             grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
-//            grid.embedIntoGrid(planeCoordinates,
-//                               img_width-1-pow(2, m_decomposition->getLevel()),
-//                               img_height-1-pow(2, m_decomposition->getLevel()),
-//                               0.f, img_width-1, img_height-1);
+
+            mh_map->updateBB(planeCoordinates);
+
+            qglviewer::Vec bb_min = mh_map->getBBmin();
+            qglviewer::Vec bb_max = mh_map->getBBmax();
+
+            float width_step = (bb_max.x-bb_min.x)/img_width;
+            float height_step = (bb_max.y-bb_min.y)/img_height;
+
+            grid.embedIntoGrid(planeCoordinates, img_width-1-l_p, img_height-1-l_p);
+
+            PFP2::MATRIX44 transform_matrix;
+            transform_matrix.identity();
+            transform_matrix.setSubVectorV(0, 3, PFP2::VEC4(-(width_step*(l_p-1))/2., (height_step*(l_p-1))/2., 0., 1.));
+            grid.transform(planeCoordinates, transform_matrix);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
@@ -1097,12 +1132,25 @@ bool Surface_WaveletDecomposition_Plugin::moveDownDecomposition(const QString& m
             width /= 2;
             height /= 2;
 
+            int l_p = pow(2, m_decomposition->getLevel());
+
             Algo::Surface::Tilings::Square::Grid<PFP2> grid(*map, width-1, height-1);
             grid.embedIntoGrid(planeCoordinates, img_width-1, img_height-1);
-//            grid.embedIntoGrid(planeCoordinates,
-//                               img_width-1-pow(2, m_decomposition->getLevel()),
-//                               img_height-1-pow(2, m_decomposition->getLevel()),
-//                               0.f, img_width-1, img_height-1);
+
+            mh_map->updateBB(planeCoordinates);
+
+            qglviewer::Vec bb_min = mh_map->getBBmin();
+            qglviewer::Vec bb_max = mh_map->getBBmax();
+
+            float width_step = (bb_max.x-bb_min.x)/img_width;
+            float height_step = (bb_max.y-bb_min.y)/img_height;
+
+            grid.embedIntoGrid(planeCoordinates, img_width-1-l_p, img_height-1-l_p);
+
+            PFP2::MATRIX44 transform_matrix;
+            transform_matrix.identity();
+            transform_matrix.setSubVectorV(0, 3, PFP2::VEC4(-(width_step*(l_p-1))/2., (height_step*(l_p-1))/2., 0., 1.));
+            grid.transform(planeCoordinates, transform_matrix);
 
             std::vector<Dart> vDarts = grid.getVertexDarts();
 
