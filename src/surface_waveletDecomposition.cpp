@@ -238,10 +238,17 @@ void Surface_WaveletDecomposition_Plugin::saveImages(const QString& name, const 
 {
     if(m_decomposition && !name.isEmpty() && !directory.isEmpty())
     {
-        int width = m_decomposition->getWidth();
-        int height = m_decomposition->getHeight();
+        int l_p = pow(2, m_decomposition->getLevel());
+
+        int width = m_decomposition->getWidth()/l_p;
+        int height = m_decomposition->getHeight()/l_p;
         QImage image(width, height, QImage::Format_RGB32);
         QString filename(directory);
+        filename.append(name);
+
+        mkdir(filename.toStdString().c_str(), 0777);
+
+        filename.append("/");
         filename.append(name);
         filename.append("-");
         filename.append(QString::number(m_decomposition->getLevel()));
@@ -251,7 +258,7 @@ void Surface_WaveletDecomposition_Plugin::saveImages(const QString& name, const 
         {
             for(int j = 0; j < height; ++j)
             {
-                int color = m_decomposition->getCoefficient(i, j);
+                int color = m_matrix_coef[i+m_decomposition->getWidth()*j];
                 image.setPixel(i, j, qRgb(qAbs(color), qAbs(color), qAbs(color)));
             }
         }
